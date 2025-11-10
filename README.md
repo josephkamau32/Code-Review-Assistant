@@ -1,4 +1,3 @@
-```markdown
 # Code Review Assistant with RAG
 
 AI-powered code review assistant that learns from your team's historical reviews and provides intelligent, context-aware feedback on pull requests.
