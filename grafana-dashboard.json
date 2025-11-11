@@ -1,0 +1,52 @@
+{
+  "dashboard": {
+    "title": "Code Review Assistant",
+    "panels": [
+      {
+        "title": "Review Requests (Rate)",
+        "targets": [
+          {
+            "expr": "rate(code_review_requests_total[5m])"
+          }
+        ],
+        "type": "graph"
+      },
+      {
+        "title": "Average Review Duration",
+        "targets": [
+          {
+            "expr": "rate(code_review_duration_seconds_sum[5m]) / rate(code_review_duration_seconds_count[5m])"
+          }
+        ],
+        "type": "graph"
+      },
+      {
+        "title": "Suggestions by Severity",
+        "targets": [
+          {
+            "expr": "sum by (severity) (rate(code_review_suggestions_generated_total[5m]))"
+          }
+        ],
+        "type": "graph"
+      },
+      {
+        "title": "Vector DB Size",
+        "targets": [
+          {
+            "expr": "vector_db_reviews_total"
+          }
+        ],
+        "type": "singlestat"
+      },
+      {
+        "title": "LLM Token Usage",
+        "targets": [
+          {
+            "expr": "sum by (model) (rate(llm_tokens_used_total[1h]))"
+          }
+        ],
+        "type": "graph"
+      }
+    ]
+  }
+}
