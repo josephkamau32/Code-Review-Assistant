@@ -1,411 +1,442 @@
 # Code Review Assistant
 
-AI-powered code review assistant with RAG (Retrieval-Augmented Generation) that provides intelligent, context-aware code reviews using historical review data.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com/)
 
-## Features
+An intelligent, AI-powered code review assistant that leverages Retrieval-Augmented Generation (RAG) to provide context-aware, consistent code reviews based on historical review patterns and customizable style guides.
 
-- 🤖 **Intelligent Reviews**: Uses RAG to provide context-aware suggestions based on historical reviews
-- 📚 **Learns from History**: Ingests past code reviews to maintain consistency
-- 🎯 **Customizable**: Supports custom style guides and coding standards
-- 🔄 **Real-time**: Automatic reviews via GitHub webhooks
-- 📊 **Analytics**: Track review patterns and improvements
+## 🌟 Key Features
 
-## Architecture
+- **🤖 Intelligent Reviews**: Uses advanced RAG technology to analyze code changes and provide contextual suggestions
+- **📚 Learning System**: Continuously learns from historical code reviews to maintain consistency across your team
+- **🎯 Customizable Standards**: Supports custom style guides and coding standards for different languages
+- **🔄 Automated Integration**: Seamless GitHub webhook integration for automatic PR reviews
+- **📊 Analytics & Monitoring**: Built-in metrics collection and performance monitoring
+- **🚀 Multiple LLM Support**: Choose between OpenAI GPT models or Google Gemini for reviews
+- **🐳 Container Ready**: Full Docker support for easy deployment
+- **⚡ High Performance**: Optimized for speed with batch processing and caching
+
+## 🏗️ Architecture
+
 ```
-Pull Request → GitHub Webhook → FastAPI Backend → RAG Pipeline
-                                                      ↓
-                                    Vector DB ← Embeddings ← Historical Reviews
-                                                      ↓
-                                                  LLM (GPT-4)
-                                                      ↓
-                                            Review Suggestions → GitHub Comment
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   GitHub PR     │────│   FastAPI        │────│   RAG Pipeline  │
+│   Webhook       │    │   Backend        │    │                 │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+                                │                        │
+                                ▼                        ▼
+                       ┌─────────────────┐    ┌─────────────────┐
+                       │  Vector Store   │    │   LLM Service   │
+                       │  (ChromaDB)     │    │  (GPT/Gemini)   │
+                       └─────────────────┘    └─────────────────┘
+                                ▲                        │
+                                │                        ▼
+                       ┌─────────────────┐    ┌─────────────────┐
+                       │ Historical      │    │  Embedding     │
+                       │ Reviews         │    │  Service       │
+                       └─────────────────┘    └─────────────────┘
+```
 
-Quick Start
-1. Installation
-bash
+### Core Components
 
-# Clone repository
-git clone <your-repo-url>
-cd code-review-assistant
+- **API Layer**: FastAPI-based REST API with webhook handling
+- **RAG Pipeline**: Orchestrates the retrieval-augmented generation process
+- **Vector Store**: ChromaDB for efficient similarity search of historical reviews
+- **Embedding Service**: Converts code and reviews into vector representations
+- **LLM Service**: Generates intelligent review suggestions using context
+- **GitHub Integration**: Handles PR fetching, webhook verification, and comment posting
 
-# Run setup
-chmod +x scripts/setup.sh
-./scripts/setup.sh
-source venv/bin/activate
+## 🚀 Quick Start
 
-2. Configuration
+### Prerequisites
 
-Update .env with your credentials:
-bash
+- Python 3.11+
+- GitHub Personal Access Token with repo permissions
+- OpenAI API key (or Google Gemini API key)
 
-OPENAI_API_KEY=sk-...
-GITHUB_TOKEN=ghp_...
-GITHUB_WEBHOOK_SECRET=your-secret
+### Installation
 
-3. Ingest Historical Data
-bash
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/your-username/code-review-assistant.git
+   cd code-review-assistant
+   ```
 
+2. **Set up virtual environment**
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+3. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Configure environment variables**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your API keys
+   ```
+
+   Required environment variables:
+   ```bash
+   # API Keys
+   OPENAI_API_KEY=sk-your-openai-key-here
+   GITHUB_TOKEN=ghp_your-github-token-here
+   GITHUB_WEBHOOK_SECRET=your-webhook-secret
+
+   # Optional: Use Gemini instead of OpenAI
+   GEMINI_API_KEY=your-gemini-api-key
+   LLM_PROVIDER=gemini
+   ```
+
+### Data Ingestion
+
+Populate the vector database with historical reviews:
+
+```bash
 # Ingest reviews from your repository
 python scripts/ingest_reviews.py --repo your-org/your-repo --max-prs 100
 
-# Optional: Add style guide
+# Optional: Add custom style guide
 python scripts/ingest_style_guide.py --file docs/style-guide.md --language python
-
-4. Start the API
-bash
-
-# Development
-uvicorn src.api.app:app --reload
-
-# Production with Docker
-docker-compose up -d
-
-5. Setup GitHub Webhook
-
-    Go to your repository Settings → Webhooks
-    Add webhook:
-        Payload URL: https://your-domain.com/api/v1/webhook/github
-        Content type: application/json
-        Secret: Your GITHUB_WEBHOOK_SECRET
-        Events: Select "Pull requests"
-
-Usage
-Automatic Reviews
-
-Once the webhook is set up, reviews are automatic:
-
-    Open a new PR → Review posted automatically
-    Push new commits → Updated review posted
-
-Manual Reviews
-bash
-
-curl -X POST "http://localhost:8000/api/v1/review/manual?repo_name=owner/repo&pr_number=123"
-
-Python API
-python
-
-from src.utils.github_client import GitHubClient
-from src.rag.pipeline import RAGPipeline
-
-# Initialize
-github_client = GitHubClient()
-pipeline = RAGPipeline()
-
-# Get PR
-pr = github_client.get_pr_changes("owner/repo", 123)
-
-# Review
-review = pipeline.review_pull_request(pr)
-
-print(f"Found {len(review.suggestions)} suggestions")
-for suggestion in review.suggestions:
-    print(f"- [{suggestion.severity}] {suggestion.suggestion}")
 ```
 
-## Project Structure
-```
-code-review-assistant/
-├── src/
-│   ├── api/              # FastAPI application
-│   ├── rag/              # RAG pipeline components
-│   ├── models/           # Pydantic models
-│   ├── utils/            # Utility functions
-│   └── config/           # Configuration
-├── scripts/              # CLI scripts
-├── tests/                # Unit & integration tests
-├── data/                 # Data storage
-├── logs/                 # Application logs
-├── notebooks/            # Jupyter notebooks for analysis
-├── docker-compose.yml
-├── Dockerfile
-└── requirements.txt
+### Running the Application
 
-Testing
-bash
-
-# Run all tests
-pytest
-
-# With coverage
-pytest --cov=src tests/
-
-# Specific test
-pytest tests/test_rag_pipeline.py -v
-
-Performance
-
-    Review Time: ~5-15 seconds per PR (depends on changes)
-    Cost: ~$0.01-0.05 per review (using GPT-4 Turbo)
-    Accuracy: Improves with more historical data (recommend 50+ PRs minimum)
-
-Monitoring
-
-Check system health:
-bash
-
-curl http://localhost:8000/api/v1/health
-curl http://localhost:8000/api/v1/stats
-
-View logs:
-bash
-
-tail -f logs/app.log
-
-Customization
-Add Custom Review Categories
-
-Edit src/models/schemas.py:
-python
-
-class ReviewCategory(str, Enum):
-    STYLE = "style"
-    BUG = "bug"
-    PERFORMANCE = "performance"
-    SECURITY = "security"
-    YOUR_CUSTOM = "your_custom"  # Add here
-
-Adjust Retrieval Parameters
-
-Edit .env:
-bash
-
-TOP_K_RESULTS=10  # More similar reviews
-SIMILARITY_THRESHOLD=0.6  # Lower = more lenient matching
-
-Use Different Models
-bash
-
-# Cheaper option
-LLM_MODEL=gpt-3.5-turbo
-EMBEDDING_MODEL=text-embedding-ada-002
-
-# Better quality
-LLM_MODEL=gpt-4-turbo-preview
-EMBEDDING_MODEL=text-embedding-3-large
-```
-
-## Troubleshooting
-
-### "No reviews found in vector database"
-Run the ingestion script first to populate with historical data.
-
-### "Rate limit exceeded"
-Adjust retry settings in `src/rag/embeddings.py` or upgrade your OpenAI plan.
-
-### "Webhook signature invalid"
-Ensure `GITHUB_WEBHOOK_SECRET` matches what's configured in GitHub.
-
-## Future Enhancements
-
-- [ ] Fine-tuned model on your codebase
-- [ ] Support for more languages (C++, Ruby, etc.)
-- [ ] Integration with Jira/Linear for tracking
-- [ ] A/B testing framework
-- [ ] Custom evaluation metrics
-- [ ] Web dashboard for analytics
-
-## Contributing
-
-Contributions welcome! Please:
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new features
-4. Submit a pull request
-
-## License
-
-MIT License - See LICENSE file for details
-```
-
-## Phase 10: Advanced Features & Optimization
-
-### Step 10.1: Feedback Loop (src/rag/feedback_loop.py)
-```python
-"""
-Feedback loop to improve the system based on developer interactions
-"""
-
-from typing import Dict, List
-from loguru import logger
-import json
-from pathlib import Path
-
-
-class FeedbackCollector:
-    def __init__(self, feedback_file: str = "data/feedback.jsonl"):
-        self.feedback_file = Path(feedback_file)
-        self.feedback_file.parent.mkdir(parents=True, exist_ok=True)
-    
-    def record_feedback(
-        self,
-        pr_number: int,
-        suggestion_id: str,
-        was_helpful: bool,
-        suggestion_text: str,
-        category: str,
-        severity: str,
-        developer_comment: str = None
-    ):
-        """Record developer feedback on a suggestion"""
-        feedback_entry = {
-            "pr_number": pr_number,
-            "suggestion_id": suggestion_id,
-            "was_helpful": was_helpful,
-            "suggestion_text": suggestion_text,
-            "category": category,
-            "severity": severity,
-            "developer_comment": developer_comment,
-            "timestamp": str(datetime.now())
-        }
-        
-        with open(self.feedback_file, 'a') as f:
-            f.write(json.dumps(feedback_entry) + '\n')
-        
-        logger.info(f"Recorded feedback for PR #{pr_number}")
-    
-    def get_feedback_stats(self) -> Dict:
-        """Analyze collected feedback"""
-        if not self.feedback_file.exists():
-            return {"total": 0}
-        
-        feedbacks = []
-        with open(self.feedback_file, 'r') as f:
-            for line in f:
-                feedbacks.append(json.loads(line))
-        
-        total = len(feedbacks)
-        helpful = sum(1 for f in feedbacks if f['was_helpful'])
-        
-        by_category = {}
-        for f in feedbacks:
-            cat = f['category']
-            if cat not in by_category:
-                by_category[cat] = {"total": 0, "helpful": 0}
-            by_category[cat]['total'] += 1
-            if f['was_helpful']:
-                by_category[cat]['helpful'] += 1
-        
-        return {
-            "total_feedback": total,
-            "helpful_count": helpful,
-            "helpfulness_rate": helpful / total if total > 0 else 0,
-            "by_category": by_category
-        }
-```
-
-### Step 10.2: Monitoring Dashboard Data (src/utils/metrics.py)
-```python
-"""
-Collect metrics for monitoring dashboard
-"""
-
-from dataclasses import dataclass, asdict
-from typing import List, Dict
-from datetime import datetime
-import json
-from pathlib import Path
-
-
-@dataclass
-class ReviewMetrics:
-    timestamp: str
-    pr_number: int
-    repository: str
-    processing_time: float
-    suggestions_count: int
-    errors_count: int
-    warnings_count: int
-    info_count: int
-    files_reviewed: int
-    vector_db_queries: int
-    llm_tokens_used: int
-    
-
-class MetricsCollector:
-    def __init__(self, metrics_file: str = "data/metrics.jsonl"):
-        self.metrics_file = Path(metrics_file)
-        self.metrics_file.parent.mkdir(parents=True, exist_ok=True)
-    
-    def record_review_metrics(self, metrics: ReviewMetrics):
-        """Record metrics for a code review"""
-        with open(self.metrics_file, 'a') as f:
-            f.write(json.dumps(asdict(metrics)) + '\n')
-    
-    def get_summary_stats(self, days: int = 7) -> Dict:
-        """Get summary statistics for the last N days"""
-        if not self.metrics_file.exists():
-            return {}
-        
-        # Read all metrics
-        all_metrics = []
-        with open(self.metrics_file, 'r') as f:
-            for line in f:
-                all_metrics.append(json.loads(line))
-        
-        # Calculate stats
-        total_reviews = len(all_metrics)
-        avg_processing_time = sum(m['processing_time'] for m in all_metrics) / total_reviews if total_reviews > 0 else 0
-        total_suggestions = sum(m['suggestions_count'] for m in all_metrics)
-        
-        return {
-            "total_reviews": total_reviews,
-            "avg_processing_time_seconds": round(avg_processing_time, 2),
-            "total_suggestions": total_suggestions,
-            "avg_suggestions_per_review": round(total_suggestions / total_reviews, 2) if total_reviews > 0 else 0
-        }
-```
-
-## Final Steps: Running the System
-
-### Step 1: Complete Setup
+**Development Mode:**
 ```bash
-# 1. Create and activate virtual environment
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# 2. Install dependencies
-pip install -r requirements.txt
-
-# 3. Set up environment variables
-cp .env.example .env
-# Edit .env with your API keys
-
-# 4. Create directories
-mkdir -p data/vector_db logs
-```
-
-### Step 2: Ingest Historical Data
-```bash
-# Ingest historical reviews from your repo
-python scripts/ingest_reviews.py --repo facebook/react --max-prs 50
-
-# The more historical data, the better the reviews!
-```
-
-### Step 3: Start the API Server
-```bash
-# Development mode
 uvicorn src.api.app:app --reload --host 0.0.0.0 --port 8000
+```
 
-# Or with Docker
+**Production with Docker:**
+```bash
 docker-compose up -d
 ```
 
-### Step 4: Test Manual Review
+**Manual Testing:**
 ```bash
 # Test with a real PR
 curl -X POST "http://localhost:8000/api/v1/review/manual?repo_name=facebook/react&pr_number=28208"
 ```
 
-### Step 5: Set Up GitHub Webhook
+## 📖 API Documentation
 
-1. Go to your repository → Settings → Webhooks → Add webhook
-2. Set:
-   - Payload URL: https://your-domain.com/api/v1/webhook/github
-   - Content type: application/json
-   - Secret: (your GITHUB_WEBHOOK_SECRET from .env)
-   - Events: Select "Pull requests"
-   - Active: ✓
-4. Save and test with a new PR!
+### Endpoints
 
+#### POST `/api/v1/webhook/github`
+Handles GitHub webhook events for automatic PR reviews.
+
+**Headers:**
+- `X-Hub-Signature-256`: Webhook signature for verification
+
+**Triggers review on:**
+- PR opened
+- PR synchronized (new commits)
+- PR reopened
+
+#### POST `/api/v1/review/manual`
+Manually trigger a code review for testing.
+
+**Parameters:**
+- `repo_name` (string): Repository in format `owner/repo`
+- `pr_number` (integer): Pull request number
+
+**Response:**
+```json
+{
+  "pr_number": 123,
+  "repository": "owner/repo",
+  "suggestions": [
+    {
+      "file_path": "src/main.py",
+      "line_number": 42,
+      "suggestion": "Consider using a more descriptive variable name",
+      "severity": "info",
+      "category": "style",
+      "confidence": 0.85,
+      "similar_past_reviews": ["..."]
+    }
+  ],
+  "summary": "Found 3 suggestions for style and best practices",
+  "processing_time_seconds": 2.34
+}
+```
+
+#### POST `/api/v1/feedback`
+Submit feedback on review suggestions to improve the system.
+
+**Request Body:**
+```json
+{
+  "suggestion_id": "unique-id",
+  "pr_number": 123,
+  "was_helpful": true,
+  "developer_comment": "This suggestion was very helpful"
+}
+```
+
+#### GET `/api/v1/stats`
+Get system statistics and health information.
+
+#### GET `/api/v1/health`
+Basic health check endpoint.
+
+### Supported Languages
+
+- Python
+- JavaScript/TypeScript
+- Java
+- Go
+- Rust
+- C++
+- Ruby
+- PHP
+
+## ⚙️ Configuration
+
+### Environment Variables
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `OPENAI_API_KEY` | OpenAI API key for GPT models | - | Yes* |
+| `GEMINI_API_KEY` | Google Gemini API key | - | Yes* |
+| `GITHUB_TOKEN` | GitHub personal access token | - | Yes |
+| `GITHUB_WEBHOOK_SECRET` | Secret for webhook verification | - | Yes |
+| `LLM_PROVIDER` | LLM provider (`openai` or `gemini`) | `openai` | No |
+| `LLM_MODEL` | Specific model to use | `gpt-4-turbo-preview` | No |
+| `EMBEDDING_MODEL` | Embedding model | `text-embedding-3-small` | No |
+| `TOP_K_RESULTS` | Number of similar reviews to retrieve | `5` | No |
+| `SIMILARITY_THRESHOLD` | Minimum similarity score | `0.7` | No |
+| `TEMPERATURE` | LLM temperature for generation | `0.3` | No |
+| `API_HOST` | Server host | `0.0.0.0` | No |
+| `API_PORT` | Server port | `8000` | No |
+
+*Either OpenAI or Gemini API key is required
+
+### Model Options
+
+**OpenAI Models:**
+- `gpt-4-turbo-preview` (recommended for quality)
+- `gpt-4` (high quality, more expensive)
+- `gpt-3.5-turbo` (faster, cheaper)
+
+**Gemini Models:**
+- `gemini-1.5-flash` (fast and efficient)
+- `gemini-1.5-pro` (higher quality)
+
+## 🧪 Testing
+
+### Running Tests
+
+```bash
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov=src tests/
+
+# Run specific test file
+pytest tests/test_rag_pipeline.py -v
+
+# Run integration tests
+pytest tests/test_integration.py
+```
+
+### Test Structure
+
+```
+tests/
+├── test_end_to_end.py      # Full pipeline tests
+├── test_integration.py     # Component integration tests
+├── test_rag_pipeline.py    # RAG pipeline unit tests
+└── __init__.py
+```
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+**"No reviews found in vector database"**
+- Run the ingestion script first: `python scripts/ingest_reviews.py --repo your-repo --max-prs 50`
+- Ensure you have at least 20-50 historical reviews for meaningful results
+
+**"Rate limit exceeded"**
+- OpenAI: Upgrade your plan or reduce request frequency
+- GitHub: Check your token permissions and rate limits
+- Add retry logic or implement request throttling
+
+**"Webhook signature invalid"**
+- Verify `GITHUB_WEBHOOK_SECRET` matches your GitHub webhook configuration
+- Ensure the secret is URL-safe and properly encoded
+
+**"Embedding service failed"**
+- Check your API keys are valid and have sufficient credits
+- Verify network connectivity to OpenAI/Gemini APIs
+- Try switching between OpenAI and Gemini providers
+
+**"PR changes not detected"**
+- Ensure the PR has actual code changes (not just metadata)
+- Check that the repository is accessible with your GitHub token
+- Verify the PR number is correct
+
+### Performance Tuning
+
+**Slow Review Times:**
+- Reduce `TOP_K_RESULTS` (try 3-5 instead of 10)
+- Use faster models like `gpt-3.5-turbo` or `gemini-1.5-flash`
+- Increase `SIMILARITY_THRESHOLD` to reduce irrelevant matches
+
+**High Memory Usage:**
+- Process reviews in smaller batches during ingestion
+- Use lighter embedding models
+- Implement proper cleanup of vector store connections
+
+### Logs and Debugging
+
+```bash
+# View application logs
+tail -f logs/app.log
+
+# Enable debug logging
+export LOG_LEVEL=DEBUG
+uvicorn src.api.app:app --reload --log-level debug
+```
+
+## 🚀 Deployment
+
+### Docker Deployment
+
+```bash
+# Build and run with Docker Compose
+docker-compose up -d
+
+# View logs
+docker-compose logs -f api
+
+# Scale the service
+docker-compose up -d --scale api=3
+```
+
+### Production Considerations
+
+- Use environment-specific configuration files
+- Set up proper logging aggregation (ELK stack, etc.)
+- Implement health checks and monitoring
+- Configure backup strategies for vector database
+- Set up CI/CD pipelines for automated deployment
+
+### Cloud Deployment Options
+
+**AWS:**
+```bash
+# ECS with Fargate
+aws ecs create-service --service-name code-review-assistant \
+  --task-definition cra-task \
+  --desired-count 2
+```
+
+**Google Cloud:**
+```bash
+# Cloud Run
+gcloud run deploy code-review-assistant \
+  --source . \
+  --platform managed \
+  --region us-central1
+```
+
+**Azure:**
+```bash
+# Container Instances
+az container create \
+  --resource-group myResourceGroup \
+  --name cra-container \
+  --image myregistry.azurecr.io/cra:latest \
+  --ports 8000
+```
+
+## 🤝 Contributing
+
+We welcome contributions! Please follow these guidelines:
+
+### Development Setup
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Set up pre-commit hooks: `pip install pre-commit && pre-commit install`
+4. Make your changes
+5. Add tests for new features
+6. Ensure all tests pass: `pytest`
+7. Update documentation if needed
+8. Commit your changes: `git commit -m 'Add amazing feature'`
+9. Push to the branch: `git push origin feature/amazing-feature`
+10. Open a Pull Request
+
+### Code Standards
+
+- Follow PEP 8 for Python code
+- Use type hints for all function parameters and return values
+- Write comprehensive docstrings
+- Add unit tests for all new functionality
+- Ensure code coverage remains above 80%
+
+### Testing Guidelines
+
+- Write tests for both happy path and error scenarios
+- Mock external API calls in unit tests
+- Include integration tests for critical paths
+- Test with different LLM providers when possible
+
+## 📊 Performance & Metrics
+
+### Typical Performance
+
+- **Review Time**: 5-15 seconds per PR (depends on changes and model)
+- **Cost**: $0.01-0.05 per review (GPT-4 Turbo)
+- **Accuracy**: Improves with more historical data (50+ reviews recommended)
+- **Memory Usage**: ~500MB base + ~100MB per 1000 reviews
+
+### Monitoring
+
+Track these key metrics:
+- Review processing time
+- API response times
+- Error rates by category
+- User feedback scores
+- Vector database query performance
+
+## 🔮 Future Enhancements
+
+- [ ] Fine-tuned models on specific codebases
+- [ ] Support for additional programming languages
+- [ ] Integration with Jira/Linear for issue tracking
+- [ ] A/B testing framework for review quality
+- [ ] Custom evaluation metrics and benchmarks
+- [ ] Web dashboard for analytics and management
+- [ ] Slack/Discord bot integration
+- [ ] IDE plugins (VS Code, IntelliJ)
+- [ ] Batch processing for multiple PRs
+- [ ] Advanced filtering and customization options
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Built with [FastAPI](https://fastapi.tiangolo.com/) for the API framework
+- Powered by [LangChain](https://www.langchain.com/) for LLM orchestration
+- Vector storage provided by [ChromaDB](https://www.trychroma.com/)
+- Embeddings generated using [OpenAI](https://openai.com/) and [Google Gemini](https://gemini.google.com/)
+
+## 📞 Support
+
+- **Issues**: [GitHub Issues](https://github.com/your-username/code-review-assistant/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/your-username/code-review-assistant/discussions)
+- **Documentation**: [Wiki](https://github.com/your-username/code-review-assistant/wiki)
+
+---
+
+**Made with ❤️ for developers, by developers**
