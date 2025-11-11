@@ -402,4 +402,10 @@ curl -X POST "http://localhost:8000/api/v1/review/manual?repo_name=facebook/reac
 
 1. Go to your repository → Settings → Webhooks → Add webhook
 2. Set:
+   - Payload URL: https://your-domain.com/api/v1/webhook/github
+   - Content type: application/json
+   - Secret: (your GITHUB_WEBHOOK_SECRET from .env)
+   - Events: Select "Pull requests"
+   - Active: ✓
+4. Save and test with a new PR!
 
