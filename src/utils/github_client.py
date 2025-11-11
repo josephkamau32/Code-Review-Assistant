@@ -9,11 +9,12 @@ import re
 
 class GitHubClient:
     def __init__(self):
-        if not settings.github_token:
-            logger.error("GitHub token is not set in settings")
-            raise ValueError("GitHub token is required")
-        self.client = Github(settings.github_token)
-        logger.info("GitHub client initialized")
+        if not settings.github_token or settings.github_token == "your_github_token_here":
+            logger.warning("GitHub token is not set or using placeholder. GitHub integration will not work.")
+            self.client = None
+        else:
+            self.client = Github(settings.github_token)
+            logger.info("GitHub client initialized")
         self.language_extensions = {
             '.py': CodeLanguage.PYTHON,
             '.js': CodeLanguage.JAVASCRIPT,
@@ -36,6 +37,10 @@ class GitHubClient:
         max_prs: int = 100
     ) -> List[HistoricalReview]:
         """Fetch historical code reviews from a repository"""
+        if not self.client:
+            logger.warning("GitHub client not initialized - skipping fetch")
+            return []
+
         reviews = []
         processed_prs = 0
         error_count = 0
@@ -163,6 +168,10 @@ class GitHubClient:
     
     def get_pr_changes(self, repo_name: str, pr_number: int) -> PullRequest:
         """Get detailed changes from a pull request"""
+        if not self.client:
+            logger.warning("GitHub client not initialized - cannot fetch PR changes")
+            raise Exception("GitHub client not available")
+
         try:
             # Check rate limit
             rate_limit = self.client.get_rate_limit()
@@ -218,6 +227,10 @@ class GitHubClient:
         suggestions: List[Dict[str, Any]]
     ) -> bool:
         """Post review suggestions as PR comments"""
+        if not self.client:
+            logger.warning("GitHub client not initialized - cannot post review comment")
+            return False
+
         try:
             # Check rate limit
             rate_limit = self.client.get_rate_limit()

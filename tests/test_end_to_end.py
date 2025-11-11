@@ -11,29 +11,34 @@ from src.rag.pipeline import RAGPipeline
 
 def test_full_workflow():
     """Test complete workflow from ingestion to review"""
-    
+    from src.config.settings import settings
+
+    # Skip test if GitHub token not configured
+    if not settings.github_token or settings.github_token == "your_github_token_here":
+        pytest.skip("GitHub token not configured - skipping integration test")
+
     # 1. Ingest sample data
     github_client = GitHubClient()
     pipeline = RAGPipeline()
-    
+
     # Use a public repo for testing
     reviews = github_client.fetch_historical_reviews("django/django", max_prs=5)
     assert len(reviews) > 0, "Should fetch some reviews"
-    
+
     pipeline.ingest_historical_reviews(reviews)
-    
+
     # 2. Get a test PR
     pr = github_client.get_pr_changes("django/django", 15000)  # Known PR
     assert pr.pr_number == 15000
-    
+
     # 3. Review it
     response = pipeline.review_pull_request(pr)
-    
+
     # 4. Validate response
     assert response.pr_number == 15000
     assert isinstance(response.suggestions, list)
     assert response.processing_time_seconds > 0
-    
+
     print(f"✅ Generated {len(response.suggestions)} suggestions")
     print(f"⏱️  Processing time: {response.processing_time_seconds}s")
 
@@ -47,17 +52,22 @@ def test_api_health():
 
 def test_webhook_signature_validation():
     """Test webhook signature validation"""
+    from src.config.settings import settings
+
+    # Skip test if webhook secret not configured
+    if not settings.github_webhook_secret or settings.github_webhook_secret == "your_webhook_secret_here":
+        pytest.skip("GitHub webhook secret not configured - skipping webhook test")
+
     import hmac
     import hashlib
-    from src.config.settings import settings
-    
+
     payload = b'{"action": "opened", "pull_request": {"number": 1}}'
     signature = "sha256=" + hmac.new(
         settings.github_webhook_secret.encode(),
         payload,
         hashlib.sha256
     ).hexdigest()
-    
+
     response = requests.post(
         "http://localhost:8000/api/v1/webhook/github",
         data=payload,
@@ -67,7 +77,7 @@ def test_webhook_signature_validation():
             "Content-Type": "application/json"
         }
     )
-    
+
     assert response.status_code == 200
 
 

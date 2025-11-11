@@ -11,7 +11,11 @@ router = APIRouter()
 
 # Initialize services
 rag_pipeline = RAGPipeline()
-github_client = GitHubClient()
+try:
+    github_client = GitHubClient()
+except ValueError:
+    logger.warning("GitHub client initialization failed - GitHub features will be disabled")
+    github_client = None
 def verify_github_signature(payload_body: bytes, signature_header: str) -> bool:
     """Verify that the webhook signature is valid"""
     if not signature_header:
@@ -70,6 +74,10 @@ async def github_webhook(
     return {"status": "ignored", "message": "Event not processed"}
 async def process_pr_review(repo_name: str, pr_number: int):
     """Background task to process PR review"""
+    if not github_client:
+        logger.warning(f"GitHub client not available - skipping PR #{pr_number} review")
+        return
+
     try:
         # Fetch PR changes
         pull_request = github_client.get_pr_changes(repo_name, pr_number)
@@ -105,6 +113,9 @@ async def manual_review(repo_name: str, pr_number: int):
     Manually trigger a code review for a specific PR
     Useful for testing and on-demand reviews
     """
+    if not github_client:
+        raise HTTPException(status_code=503, detail="GitHub integration not available - please configure GitHub token")
+
     try:
         logger.info(f"Manual review requested for {repo_name} PR #{pr_number}")
         # Fetch PR changes

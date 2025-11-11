@@ -4,9 +4,9 @@ from typing import Optional
 
 class Settings(BaseSettings):
     # API Keys
-    openai_api_key: str
-    github_token: str
-    github_webhook_secret: str
+    openai_api_key: Optional[str] = None
+    github_token: Optional[str] = None
+    github_webhook_secret: Optional[str] = None
     
     # Database
     chroma_persist_directory: str = "./data/vector_db"

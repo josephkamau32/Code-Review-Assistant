@@ -1,3 +1,6 @@
 2025-11-10 19:31:53.785 | INFO     | src.api.app:startup_event:23 - Starting Code Review Assistant API
 2025-11-10 19:31:53.786 | INFO     | src.api.app:startup_event:24 - Vector DB path: ./data/vector_db
 2025-11-10 19:31:53.786 | INFO     | src.api.app:startup_event:25 - Collection name: code_reviews
+2025-11-11 14:19:02.856 | INFO     | src.api.app:startup_event:23 - Starting Code Review Assistant API
+2025-11-11 14:19:02.856 | INFO     | src.api.app:startup_event:24 - Vector DB path: ./data/vector_db
+2025-11-11 14:19:02.856 | INFO     | src.api.app:startup_event:25 - Collection name: code_reviews

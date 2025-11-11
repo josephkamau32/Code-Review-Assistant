@@ -1,6 +1,6 @@
-# Code Review Assistant with RAG
+# Code Review Assistant
 
-AI-powered code review assistant that learns from your team's historical reviews and provides intelligent, context-aware feedback on pull requests.
+AI-powered code review assistant with RAG (Retrieval-Augmented Generation) that provides intelligent, context-aware code reviews using historical review data.
 
 ## Features
 
