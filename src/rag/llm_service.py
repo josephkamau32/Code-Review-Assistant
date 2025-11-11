@@ -1,24 +1,76 @@
-from openai import OpenAI
+import json
 from typing import List, Dict, Any
 from loguru import logger
+from tenacity import retry, stop_after_attempt, wait_exponential
+
+# Import providers conditionally
+try:
+    from openai import OpenAI
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+
+try:
+    import google.generativeai as genai
+    GEMINI_AVAILABLE = True
+except ImportError:
+    GEMINI_AVAILABLE = False
+
 from src.config.settings import settings
 from src.models.schemas import CodeChange, ReviewSuggestion
-from tenacity import retry, stop_after_attempt, wait_exponential
-import json
 
 
 class LLMService:
     def __init__(self):
-        # Use mock mode if no real API key
+        self.provider = settings.llm_provider.lower()
+
+        if self.provider == "gemini":
+            self._init_gemini()
+        elif self.provider == "openai":
+            self._init_openai()
+        else:
+            raise ValueError(f"Unsupported LLM provider: {self.provider}")
+
+    def _init_gemini(self):
+        if not GEMINI_AVAILABLE:
+            raise ImportError("google-generativeai not installed. Install with: pip install google-generativeai")
+
+        api_key = settings.gemini_api_key
+        if not api_key or api_key == "your_gemini_api_key_here":
+            logger.warning("Using mock LLM service - no Gemini API key provided")
+            self.mock_mode = True
+            self.model = settings.gemini_llm_model
+        else:
+            genai.configure(api_key=api_key)
+            self.client = genai.GenerativeModel(settings.gemini_llm_model)
+            self.mock_mode = False
+            self.model = settings.gemini_llm_model
+            logger.info(f"Initialized Gemini LLM service with model: {self.model}")
+
+    def _init_openai(self):
+        if not OPENAI_AVAILABLE:
+            raise ImportError("openai not installed. Install with: pip install openai")
+
         api_key = settings.openai_api_key
         if api_key == "your_openai_api_key_here" or not api_key:
-            logger.warning("Using mock LLM service - no real API key provided")
+            logger.warning("Using mock LLM service - no OpenAI API key provided")
             self.mock_mode = True
             self.model = settings.llm_model
         else:
             self.client = OpenAI(api_key=api_key)
             self.mock_mode = False
             self.model = settings.llm_model
+            logger.info(f"Initialized OpenAI LLM service with model: {self.model}")
+            # Add logging to validate model availability
+            try:
+                models = self.client.models.list()
+                available_models = [m.id for m in models.data]
+                if self.model not in available_models:
+                    logger.warning(f"Model {self.model} not found in available OpenAI models. Available: {available_models[:10]}...")
+                else:
+                    logger.info(f"Model {self.model} is available.")
+            except Exception as e:
+                logger.error(f"Failed to validate model availability: {e}")
         
     def _build_review_prompt(
         self,
@@ -109,41 +161,72 @@ Provide your response as valid JSON only, no additional text."""
         prompt = self._build_review_prompt(code_change, similar_reviews, style_guide_context)
 
         try:
-            logger.debug(f"DEBUG: Generating review for {code_change.file_path}, similar_reviews_count: {len(similar_reviews)}")
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are an expert code reviewer. Always respond with valid JSON."
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
-                temperature=settings.temperature,
-                max_tokens=settings.max_tokens,
-                response_format={"type": "json_object"}  # Ensure JSON response
-            )
+            if self.provider == "gemini":
+                return self._generate_review_gemini(code_change, similar_reviews, style_guide_context, prompt)
+            else:  # openai
+                return self._generate_review_openai(code_change, similar_reviews, style_guide_context, prompt)
+        except Exception as e:
+            logger.error(f"DEBUG: Error generating review: {e}")
+            raise
 
-            content = response.choices[0].message.content
-            logger.debug(f"DEBUG: LLM response content length: {len(content)}")
+    def _generate_review_openai(self, code_change, similar_reviews, style_guide_context, prompt):
+        logger.debug(f"DEBUG: Generating review for {code_change.file_path}, similar_reviews_count: {len(similar_reviews)}")
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are an expert code reviewer. Always respond with valid JSON."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=settings.temperature,
+            max_tokens=settings.max_tokens,
+            response_format={"type": "json_object"}  # Ensure JSON response
+        )
+
+        content = response.choices[0].message.content
+        logger.debug(f"DEBUG: LLM response content length: {len(content)}")
+        result = json.loads(content)
+
+        logger.info(f"DEBUG: Generated review for {code_change.file_path}, suggestions_count: {len(result.get('suggestions', []))}")
+        return result
+
+    def _generate_review_gemini(self, code_change, similar_reviews, style_guide_context, prompt):
+        logger.debug(f"DEBUG: Generating review for {code_change.file_path}, similar_reviews_count: {len(similar_reviews)}")
+
+        # Configure generation parameters
+        generation_config = genai.types.GenerationConfig(
+            temperature=settings.temperature,
+            max_output_tokens=settings.max_tokens,
+            response_mime_type="application/json"
+        )
+
+        # Create a new chat session for each request to avoid context issues
+        chat = self.client.start_chat(history=[])
+
+        response = chat.send_message(
+            prompt,
+            generation_config=generation_config
+        )
+
+        content = response.text
+        logger.debug(f"DEBUG: Gemini response content length: {len(content)}")
+
+        try:
             result = json.loads(content)
-
             logger.info(f"DEBUG: Generated review for {code_change.file_path}, suggestions_count: {len(result.get('suggestions', []))}")
             return result
-
         except json.JSONDecodeError as e:
-            logger.error(f"DEBUG: Failed to parse LLM response as JSON: {e}, content: {content[:500]}...")
+            logger.error(f"DEBUG: Failed to parse Gemini response as JSON: {e}, content: {content[:500]}...")
             # Fallback response
             return {
                 "suggestions": [],
                 "summary": "Error generating review. Please try again."
             }
-        except Exception as e:
-            logger.error(f"DEBUG: Error generating review: {e}")
-            raise
     
     def generate_summary(self, all_suggestions: List[ReviewSuggestion]) -> str:
         """Generate overall PR summary"""
