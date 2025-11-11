@@ -35,7 +35,7 @@ class VectorStoreManager:
     def add_review(self, review: HistoricalReview, embedding: List[float]) -> str:
         """Add a single review to the vector store"""
         doc_id = f"{review.repository}_{review.pr_number}_{review.file_path}_{review.created_at.timestamp()}"
-        
+
         metadata = {
             "pr_number": review.pr_number,
             "repository": review.repository,
@@ -46,56 +46,77 @@ class VectorStoreManager:
             "was_resolved": review.was_resolved,
             "created_at": review.created_at.isoformat()
         }
-        
+
         # Combine code snippet and review for better context
         document = f"Code:\n{review.code_snippet}\n\nReview Comment:\n{review.review_comment}"
-        
+
+        logger.debug(f"DEBUG: Adding review to vector store - doc_id: {doc_id}, embedding_len: {len(embedding)}")
         self.collection.add(
             ids=[doc_id],
             embeddings=[embedding],
             documents=[document],
             metadatas=[metadata]
         )
-        
-        logger.debug(f"Added review to vector store: {doc_id}")
+
+        logger.debug(f"DEBUG: Successfully added review to vector store: {doc_id}")
         return doc_id
     
     def add_reviews_batch(self, reviews: List[HistoricalReview], embeddings: List[List[float]]):
         """Add multiple reviews in batch (more efficient)"""
         if len(reviews) != len(embeddings):
-            raise ValueError("Number of reviews must match number of embeddings")
-        
+            raise ValueError(f"Number of reviews ({len(reviews)}) must match number of embeddings ({len(embeddings)})")
+
+        if not reviews:
+            logger.warning("No reviews to add")
+            return
+
         ids = []
         documents = []
         metadatas = []
-        
+
         for review in reviews:
-            doc_id = f"{review.repository}_{review.pr_number}_{review.file_path}_{review.created_at.timestamp()}"
+            # Create unique ID with collision resistance
+            timestamp_str = str(int(review.created_at.timestamp()))
+            doc_id = f"{review.repository}_{review.pr_number}_{review.file_path}_{timestamp_str}"
+
+            # Ensure ID uniqueness by checking existing
+            if doc_id in ids:
+                # Add millisecond precision if collision
+                import time
+                doc_id = f"{doc_id}_{int(time.time()*1000)}"
+
             ids.append(doc_id)
-            
-            document = f"Code:\n{review.code_snippet}\n\nReview Comment:\n{review.review_comment}"
+
+            # Sanitize document content
+            code_part = review.code_snippet.strip() if review.code_snippet else ""
+            comment_part = review.review_comment.strip()
+            document = f"Code:\n{code_part}\n\nReview Comment:\n{comment_part}"
             documents.append(document)
-            
+
+            # Validate and sanitize metadata
             metadata = {
                 "pr_number": review.pr_number,
                 "repository": review.repository,
                 "file_path": review.file_path,
                 "reviewer": review.reviewer,
                 "comment_type": review.comment_type,
-                "language": review.language.value,
+                "language": review.language.value if review.language else "other",
                 "was_resolved": review.was_resolved,
                 "created_at": review.created_at.isoformat()
             }
             metadatas.append(metadata)
-        
-        self.collection.add(
-            ids=ids,
-            embeddings=embeddings,
-            documents=documents,
-            metadatas=metadatas
-        )
-        
-        logger.info(f"Added {len(reviews)} reviews to vector store")
+
+        try:
+            self.collection.add(
+                ids=ids,
+                embeddings=embeddings,
+                documents=documents,
+                metadatas=metadatas
+            )
+            logger.info(f"Added {len(reviews)} reviews to vector store")
+        except Exception as e:
+            logger.error(f"Error adding reviews to vector store: {e}")
+            raise
     
     def search_similar_reviews(
         self,

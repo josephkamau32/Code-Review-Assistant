@@ -9,8 +9,16 @@ import json
 
 class LLMService:
     def __init__(self):
-        self.client = OpenAI(api_key=settings.openai_api_key)
-        self.model = settings.llm_model
+        # Use mock mode if no real API key
+        api_key = settings.openai_api_key
+        if api_key == "your_openai_api_key_here" or not api_key:
+            logger.warning("Using mock LLM service - no real API key provided")
+            self.mock_mode = True
+            self.model = settings.llm_model
+        else:
+            self.client = OpenAI(api_key=api_key)
+            self.mock_mode = False
+            self.model = settings.llm_model
         
     def _build_review_prompt(
         self,
@@ -82,10 +90,26 @@ Provide your response as valid JSON only, no additional text."""
         style_guide_context: str = ""
     ) -> Dict[str, Any]:
         """Generate code review using LLM with RAG context"""
-        
+
+        if self.mock_mode:
+            # Return mock review for testing
+            return {
+                "suggestions": [
+                    {
+                        "line_number": 1,
+                        "suggestion": "Consider adding input validation for better robustness.",
+                        "severity": "warning",
+                        "category": "best_practice",
+                        "confidence": 0.8
+                    }
+                ],
+                "summary": "Mock review generated for testing purposes."
+            }
+
         prompt = self._build_review_prompt(code_change, similar_reviews, style_guide_context)
-        
+
         try:
+            logger.debug(f"DEBUG: Generating review for {code_change.file_path}, similar_reviews_count: {len(similar_reviews)}")
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
@@ -102,22 +126,23 @@ Provide your response as valid JSON only, no additional text."""
                 max_tokens=settings.max_tokens,
                 response_format={"type": "json_object"}  # Ensure JSON response
             )
-            
+
             content = response.choices[0].message.content
+            logger.debug(f"DEBUG: LLM response content length: {len(content)}")
             result = json.loads(content)
-            
-            logger.info(f"Generated review for {code_change.file_path}")
+
+            logger.info(f"DEBUG: Generated review for {code_change.file_path}, suggestions_count: {len(result.get('suggestions', []))}")
             return result
-            
+
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse LLM response as JSON: {e}")
+            logger.error(f"DEBUG: Failed to parse LLM response as JSON: {e}, content: {content[:500]}...")
             # Fallback response
             return {
                 "suggestions": [],
                 "summary": "Error generating review. Please try again."
             }
         except Exception as e:
-            logger.error(f"Error generating review: {e}")
+            logger.error(f"DEBUG: Error generating review: {e}")
             raise
     
     def generate_summary(self, all_suggestions: List[ReviewSuggestion]) -> str:
