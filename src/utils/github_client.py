@@ -48,9 +48,14 @@ class GitHubClient:
         try:
             # Check rate limit before starting
             rate_limit = self.client.get_rate_limit()
-            if rate_limit.core.remaining < 100:
-                logger.warning(f"Low GitHub API rate limit remaining: {rate_limit.core.remaining}")
-                if rate_limit.core.remaining < 10:
+            # Handle different PyGithub API versions
+            if hasattr(rate_limit, 'core'):
+                remaining = rate_limit.core.remaining
+            else:
+                remaining = rate_limit.remaining
+            if remaining < 100:
+                logger.warning(f"Low GitHub API rate limit remaining: {remaining}")
+                if remaining < 10:
                     raise Exception("GitHub API rate limit nearly exhausted")
 
             repo = self.client.get_repo(repo_name)
@@ -120,7 +125,12 @@ class GitHubClient:
 
             # Check rate limit after completion
             final_rate_limit = self.client.get_rate_limit()
-            logger.info(f"Final rate limit: {final_rate_limit.core.remaining} requests remaining")
+            # Handle different PyGithub API versions
+            if hasattr(final_rate_limit, 'core'):
+                final_remaining = final_rate_limit.core.remaining
+            else:
+                final_remaining = final_rate_limit.remaining
+            logger.info(f"Final rate limit: {final_remaining} requests remaining")
 
             return reviews
 
@@ -175,8 +185,13 @@ class GitHubClient:
         try:
             # Check rate limit
             rate_limit = self.client.get_rate_limit()
-            if rate_limit.core.remaining < 10:
-                logger.warning(f"Low GitHub API rate limit remaining: {rate_limit.core.remaining}")
+            # Handle different PyGithub API versions
+            if hasattr(rate_limit, 'core'):
+                remaining = rate_limit.core.remaining
+            else:
+                remaining = rate_limit.remaining
+            if remaining < 10:
+                logger.warning(f"Low GitHub API rate limit remaining: {remaining}")
                 raise Exception("GitHub API rate limit nearly exhausted")
 
             repo = self.client.get_repo(repo_name)
@@ -234,8 +249,13 @@ class GitHubClient:
         try:
             # Check rate limit
             rate_limit = self.client.get_rate_limit()
-            if rate_limit.core.remaining < 5:
-                logger.warning(f"Low GitHub API rate limit remaining: {rate_limit.core.remaining}")
+            # Handle different PyGithub API versions
+            if hasattr(rate_limit, 'core'):
+                remaining = rate_limit.core.remaining
+            else:
+                remaining = rate_limit.remaining
+            if remaining < 5:
+                logger.warning(f"Low GitHub API rate limit remaining: {remaining}")
                 return False
 
             repo = self.client.get_repo(repo_name)
