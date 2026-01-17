@@ -4,3 +4,161 @@
 2025-11-11 14:19:02.856 | INFO     | src.api.app:startup_event:23 - Starting Code Review Assistant API
 2025-11-11 14:19:02.856 | INFO     | src.api.app:startup_event:24 - Vector DB path: ./data/vector_db
 2025-11-11 14:19:02.856 | INFO     | src.api.app:startup_event:25 - Collection name: code_reviews
+2025-11-11 16:39:05.567 | INFO     | src.api.app:startup_event:23 - Starting Code Review Assistant API
+2025-11-11 16:39:05.568 | INFO     | src.api.app:startup_event:24 - Vector DB path: ./data/vector_db
+2025-11-11 16:39:05.640 | INFO     | src.api.app:startup_event:25 - Collection name: code_reviews
+2025-11-11 23:29:56.744 | WARNING  | src.api.routes:github_webhook:43 - Invalid webhook signature
+2025-11-11 23:32:12.709 | INFO     | src.api.routes:submit_feedback:140 - Feedback received for PR #20: helpful=True, comment=i found this very helpful
+2025-11-11 23:33:42.298 | INFO     | src.api.routes:manual_review:120 - Manual review requested for https://github.com/josephkamau32/Telivus-AI PR #4
+2025-11-11 23:33:44.599 | ERROR    | src.utils.github_client:get_pr_changes:220 - Unexpected error in get_pr_changes: 'RateLimitOverview' object has no attribute 'core'
+2025-11-11 23:33:44.600 | ERROR    | src.api.routes:manual_review:130 - Error in manual review: 'RateLimitOverview' object has no attribute 'core'
+2025-11-12 16:27:06.508 | INFO     | src.api.app:shutdown_event:30 - Shutting down Code Review Assistant API
+2025-11-12 16:27:42.958 | INFO     | src.api.app:startup_event:23 - Starting Code Review Assistant API
+2025-11-12 16:27:42.958 | INFO     | src.api.app:startup_event:24 - Vector DB path: ./data/vector_db
+2025-11-12 16:27:42.958 | INFO     | src.api.app:startup_event:25 - Collection name: code_reviews
+2025-11-15 10:50:46.431 | INFO     | src.api.app:startup_event:31 - Starting Code Review Assistant API
+2025-11-15 10:50:46.432 | INFO     | src.api.app:startup_event:32 - Vector DB path: ./data/vector_db
+2025-11-15 10:50:46.434 | INFO     | src.api.app:startup_event:33 - Collection name: code_reviews
+2025-11-15 10:52:55.859 | INFO     | src.api.app:shutdown_event:38 - Shutting down Code Review Assistant API
+2025-11-15 10:53:09.938 | INFO     | src.api.app:startup_event:31 - Starting Code Review Assistant API
+2025-11-15 10:53:09.939 | INFO     | src.api.app:startup_event:32 - Vector DB path: ./data/vector_db
+2025-11-15 10:53:09.939 | INFO     | src.api.app:startup_event:33 - Collection name: code_reviews
+2025-11-15 10:53:09.942 | INFO     | src.api.app:shutdown_event:38 - Shutting down Code Review Assistant API
+2025-11-15 10:53:24.167 | INFO     | src.api.app:startup_event:56 - Starting Code Review Assistant API
+2025-11-15 10:53:24.168 | INFO     | src.api.app:startup_event:57 - Vector DB path: ./data/vector_db
+2025-11-15 10:53:24.168 | INFO     | src.api.app:startup_event:58 - Collection name: code_reviews
+2025-11-15 10:53:24.170 | INFO     | src.api.app:shutdown_event:63 - Shutting down Code Review Assistant API
+2025-11-15 10:53:37.886 | INFO     | src.api.app:startup_event:56 - Starting Code Review Assistant API
+2025-11-15 10:53:37.887 | INFO     | src.api.app:startup_event:57 - Vector DB path: ./data/vector_db
+2025-11-15 10:53:37.887 | INFO     | src.api.app:startup_event:58 - Collection name: code_reviews
+2025-11-15 10:53:37.889 | INFO     | src.api.app:shutdown_event:63 - Shutting down Code Review Assistant API
+2025-11-15 10:53:47.618 | INFO     | src.api.app:startup_event:56 - Starting Code Review Assistant API
+2025-11-15 10:53:47.620 | INFO     | src.api.app:startup_event:57 - Vector DB path: ./data/vector_db
+2025-11-15 10:53:47.620 | INFO     | src.api.app:startup_event:58 - Collection name: code_reviews
+2025-11-15 10:54:25.907 | WARNING  | src.rag.embeddings:_init_openai:54 - Using mock embedding service - no OpenAI API key provided
+2025-11-15 10:54:26.048 | INFO     | src.rag.vector_store:_get_or_create_collection:26 - Loaded existing collection: code_reviews
+2025-11-15 10:54:26.050 | WARNING  | src.rag.llm_service:_init_openai:56 - Using mock LLM service - no OpenAI API key provided
+2025-11-15 10:55:38.497 | WARNING  | src.rag.embeddings:_init_openai:54 - Using mock embedding service - no OpenAI API key provided
+2025-11-15 10:55:38.689 | INFO     | src.rag.vector_store:_get_or_create_collection:26 - Loaded existing collection: code_reviews
+2025-11-15 10:55:38.691 | WARNING  | src.rag.llm_service:_init_openai:56 - Using mock LLM service - no OpenAI API key provided
+2025-11-15 14:53:59.488 | INFO     | src.api.app:shutdown_event:63 - Shutting down Code Review Assistant API
+2025-11-17 12:22:11.095 | INFO     | src.api.app:startup_event:56 - Starting Code Review Assistant API
+2025-11-17 12:22:11.096 | INFO     | src.api.app:startup_event:57 - Vector DB path: ./data/vector_db
+2025-11-17 12:22:11.096 | INFO     | src.api.app:startup_event:58 - Collection name: code_reviews
+2025-11-17 12:45:42.473 | WARNING  | src.rag.embeddings:_init_openai:54 - Using mock embedding service - no OpenAI API key provided
+2025-11-17 12:45:42.515 | INFO     | src.rag.vector_store:_get_or_create_collection:26 - Loaded existing collection: code_reviews
+2025-11-17 12:45:42.515 | WARNING  | src.rag.llm_service:_init_openai:56 - Using mock LLM service - no OpenAI API key provided
+2025-11-17 12:47:11.651 | WARNING  | src.rag.embeddings:_init_openai:54 - Using mock embedding service - no OpenAI API key provided
+2025-11-17 12:47:11.697 | INFO     | src.rag.vector_store:_get_or_create_collection:26 - Loaded existing collection: code_reviews
+2025-11-17 12:47:11.697 | WARNING  | src.rag.llm_service:_init_openai:56 - Using mock LLM service - no OpenAI API key provided
+2025-11-17 12:50:53.804 | INFO     | src.api.app:shutdown_event:63 - Shutting down Code Review Assistant API
+2025-11-17 12:51:04.412 | INFO     | src.api.app:startup_event:56 - Starting Code Review Assistant API
+2025-11-17 12:51:04.412 | INFO     | src.api.app:startup_event:57 - Vector DB path: ./data/vector_db
+2025-11-17 12:51:04.412 | INFO     | src.api.app:startup_event:58 - Collection name: code_reviews
+2025-11-17 12:51:04.415 | INFO     | src.api.app:shutdown_event:63 - Shutting down Code Review Assistant API
+2025-11-17 12:51:13.033 | INFO     | src.api.app:startup_event:56 - Starting Code Review Assistant API
+2025-11-17 12:51:13.034 | INFO     | src.api.app:startup_event:57 - Vector DB path: ./data/vector_db
+2025-11-17 12:51:13.034 | INFO     | src.api.app:startup_event:58 - Collection name: code_reviews
+2025-11-17 12:51:51.462 | INFO     | src.api.routes:manual_review:130 - Manual review requested for josephkamau32/AI-Powered-AquaPredict PR #856
+2025-11-17 12:51:51.462 | WARNING  | src.utils.github_client:get_pr_changes:182 - GitHub client not initialized - cannot fetch PR changes
+2025-11-17 12:51:51.462 | ERROR    | src.api.routes:manual_review:140 - Error in manual review: GitHub client not available
+2025-11-17 12:55:39.074 | INFO     | src.api.app:shutdown_event:63 - Shutting down Code Review Assistant API
+2025-11-17 12:55:48.099 | INFO     | src.api.app:startup_event:56 - Starting Code Review Assistant API
+2025-11-17 12:55:48.099 | INFO     | src.api.app:startup_event:57 - Vector DB path: ./data/vector_db
+2025-11-17 12:55:48.099 | INFO     | src.api.app:startup_event:58 - Collection name: code_reviews
+2025-11-17 12:58:18.715 | WARNING  | src.rag.embeddings:_init_openai:54 - Using mock embedding service - no OpenAI API key provided
+2025-11-17 12:58:18.778 | INFO     | src.rag.vector_store:_get_or_create_collection:26 - Loaded existing collection: code_reviews
+2025-11-17 12:58:18.778 | WARNING  | src.rag.llm_service:_init_openai:56 - Using mock LLM service - no OpenAI API key provided
+2025-11-17 13:03:03.283 | WARNING  | src.rag.embeddings:_init_openai:54 - Using mock embedding service - no OpenAI API key provided
+2025-11-17 13:03:03.336 | INFO     | src.rag.vector_store:_get_or_create_collection:26 - Loaded existing collection: code_reviews
+2025-11-17 13:03:03.337 | WARNING  | src.rag.llm_service:_init_openai:56 - Using mock LLM service - no OpenAI API key provided
+2025-11-17 13:09:32.969 | WARNING  | src.rag.embeddings:_init_openai:54 - Using mock embedding service - no OpenAI API key provided
+2025-11-17 13:09:33.028 | INFO     | src.rag.vector_store:_get_or_create_collection:26 - Loaded existing collection: code_reviews
+2025-11-17 13:09:33.028 | WARNING  | src.rag.llm_service:_init_openai:56 - Using mock LLM service - no OpenAI API key provided
+2025-11-17 13:10:35.448 | WARNING  | src.rag.embeddings:_init_openai:54 - Using mock embedding service - no OpenAI API key provided
+2025-11-17 13:10:35.503 | INFO     | src.rag.vector_store:_get_or_create_collection:26 - Loaded existing collection: code_reviews
+2025-11-17 13:10:35.503 | WARNING  | src.rag.llm_service:_init_openai:56 - Using mock LLM service - no OpenAI API key provided
+2025-11-17 13:14:58.332 | INFO     | src.api.app:shutdown_event:63 - Shutting down Code Review Assistant API
+2025-11-17 13:15:08.577 | INFO     | src.api.app:startup_event:77 - Starting Code Review Assistant API
+2025-11-17 13:15:08.577 | INFO     | src.api.app:startup_event:78 - Vector DB path: ./data/vector_db
+2025-11-17 13:15:08.577 | INFO     | src.api.app:startup_event:79 - Collection name: code_reviews
+2025-11-17 13:15:08.578 | INFO     | src.api.app:shutdown_event:84 - Shutting down Code Review Assistant API
+2025-11-17 13:15:17.694 | INFO     | src.api.app:startup_event:77 - Starting Code Review Assistant API
+2025-11-17 13:15:17.694 | INFO     | src.api.app:startup_event:78 - Vector DB path: ./data/vector_db
+2025-11-17 13:15:17.695 | INFO     | src.api.app:startup_event:79 - Collection name: code_reviews
+2025-11-17 13:15:40.754 | WARNING  | src.rag.embeddings:_init_openai:54 - Using mock embedding service - no OpenAI API key provided
+2025-11-17 13:15:40.791 | INFO     | src.rag.vector_store:_get_or_create_collection:26 - Loaded existing collection: code_reviews
+2025-11-17 13:15:40.792 | WARNING  | src.rag.llm_service:_init_openai:56 - Using mock LLM service - no OpenAI API key provided
+2025-11-17 13:15:41.985 | WARNING  | src.rag.embeddings:_init_openai:54 - Using mock embedding service - no OpenAI API key provided
+2025-11-17 13:15:42.021 | INFO     | src.rag.vector_store:_get_or_create_collection:26 - Loaded existing collection: code_reviews
+2025-11-17 13:15:42.022 | WARNING  | src.rag.llm_service:_init_openai:56 - Using mock LLM service - no OpenAI API key provided
+2025-11-17 13:15:43.015 | WARNING  | src.rag.embeddings:_init_openai:54 - Using mock embedding service - no OpenAI API key provided
+2025-11-17 13:15:43.050 | INFO     | src.rag.vector_store:_get_or_create_collection:26 - Loaded existing collection: code_reviews
+2025-11-17 13:15:43.050 | WARNING  | src.rag.llm_service:_init_openai:56 - Using mock LLM service - no OpenAI API key provided
+2025-11-17 13:15:43.937 | WARNING  | src.rag.embeddings:_init_openai:54 - Using mock embedding service - no OpenAI API key provided
+2025-11-17 13:15:43.966 | INFO     | src.rag.vector_store:_get_or_create_collection:26 - Loaded existing collection: code_reviews
+2025-11-17 13:15:43.966 | WARNING  | src.rag.llm_service:_init_openai:56 - Using mock LLM service - no OpenAI API key provided
+2025-11-17 13:15:47.216 | WARNING  | src.rag.embeddings:_init_openai:54 - Using mock embedding service - no OpenAI API key provided
+2025-11-17 13:15:47.254 | INFO     | src.rag.vector_store:_get_or_create_collection:26 - Loaded existing collection: code_reviews
+2025-11-17 13:15:47.254 | WARNING  | src.rag.llm_service:_init_openai:56 - Using mock LLM service - no OpenAI API key provided
+2025-11-17 13:18:04.755 | WARNING  | src.rag.embeddings:_init_openai:54 - Using mock embedding service - no OpenAI API key provided
+2025-11-17 13:18:04.795 | INFO     | src.rag.vector_store:_get_or_create_collection:26 - Loaded existing collection: code_reviews
+2025-11-17 13:18:04.795 | WARNING  | src.rag.llm_service:_init_openai:56 - Using mock LLM service - no OpenAI API key provided
+2025-11-17 13:18:06.661 | WARNING  | src.rag.embeddings:_init_openai:54 - Using mock embedding service - no OpenAI API key provided
+2025-11-17 13:18:06.690 | INFO     | src.rag.vector_store:_get_or_create_collection:26 - Loaded existing collection: code_reviews
+2025-11-17 13:18:06.691 | WARNING  | src.rag.llm_service:_init_openai:56 - Using mock LLM service - no OpenAI API key provided
+2025-11-17 13:18:07.756 | WARNING  | src.rag.embeddings:_init_openai:54 - Using mock embedding service - no OpenAI API key provided
+2025-11-17 13:18:07.793 | INFO     | src.rag.vector_store:_get_or_create_collection:26 - Loaded existing collection: code_reviews
+2025-11-17 13:18:07.794 | WARNING  | src.rag.llm_service:_init_openai:56 - Using mock LLM service - no OpenAI API key provided
+2025-11-17 13:18:08.786 | WARNING  | src.rag.embeddings:_init_openai:54 - Using mock embedding service - no OpenAI API key provided
+2025-11-17 13:18:08.824 | INFO     | src.rag.vector_store:_get_or_create_collection:26 - Loaded existing collection: code_reviews
+2025-11-17 13:18:08.825 | WARNING  | src.rag.llm_service:_init_openai:56 - Using mock LLM service - no OpenAI API key provided
+2025-11-17 13:18:11.852 | WARNING  | src.rag.embeddings:_init_openai:54 - Using mock embedding service - no OpenAI API key provided
+2025-11-17 13:18:11.888 | INFO     | src.rag.vector_store:_get_or_create_collection:26 - Loaded existing collection: code_reviews
+2025-11-17 13:18:11.888 | WARNING  | src.rag.llm_service:_init_openai:56 - Using mock LLM service - no OpenAI API key provided
+2025-11-17 13:18:16.904 | WARNING  | src.rag.embeddings:_init_openai:54 - Using mock embedding service - no OpenAI API key provided
+2025-11-17 13:18:16.937 | INFO     | src.rag.vector_store:_get_or_create_collection:26 - Loaded existing collection: code_reviews
+2025-11-17 13:18:16.937 | WARNING  | src.rag.llm_service:_init_openai:56 - Using mock LLM service - no OpenAI API key provided
+2025-11-17 13:19:34.340 | WARNING  | src.rag.embeddings:_init_openai:54 - Using mock embedding service - no OpenAI API key provided
+2025-11-17 13:19:34.378 | INFO     | src.rag.vector_store:_get_or_create_collection:26 - Loaded existing collection: code_reviews
+2025-11-17 13:19:34.378 | WARNING  | src.rag.llm_service:_init_openai:56 - Using mock LLM service - no OpenAI API key provided
+2025-11-17 13:19:34.514 | INFO     | src.api.app:shutdown_event:84 - Shutting down Code Review Assistant API
+2025-11-17 13:19:42.973 | INFO     | src.api.app:startup_event:83 - Starting Code Review Assistant API
+2025-11-17 13:19:42.973 | INFO     | src.api.app:startup_event:84 - Vector DB path: ./data/vector_db
+2025-11-17 13:19:42.973 | INFO     | src.api.app:startup_event:85 - Collection name: code_reviews
+2025-11-17 13:19:42.975 | INFO     | src.api.app:shutdown_event:90 - Shutting down Code Review Assistant API
+2025-11-17 13:19:51.531 | INFO     | src.api.app:startup_event:83 - Starting Code Review Assistant API
+2025-11-17 13:19:51.532 | INFO     | src.api.app:startup_event:84 - Vector DB path: ./data/vector_db
+2025-11-17 13:19:51.532 | INFO     | src.api.app:startup_event:85 - Collection name: code_reviews
+2025-11-17 13:19:51.533 | WARNING  | src.rag.embeddings:_init_openai:54 - Using mock embedding service - no OpenAI API key provided
+2025-11-17 13:19:51.564 | INFO     | src.rag.vector_store:_get_or_create_collection:26 - Loaded existing collection: code_reviews
+2025-11-17 13:19:51.564 | WARNING  | src.rag.llm_service:_init_openai:56 - Using mock LLM service - no OpenAI API key provided
+2025-11-17 13:24:44.445 | INFO     | src.api.app:shutdown_event:90 - Shutting down Code Review Assistant API
+2025-11-17 13:34:21.620 | INFO     | src.api.app:startup_event:146 - Starting Code Review Assistant API
+2025-11-17 13:34:21.620 | INFO     | src.api.app:startup_event:147 - Vector DB path: ./data/vector_db
+2025-11-17 13:34:21.620 | INFO     | src.api.app:startup_event:148 - Collection name: code_reviews
+2025-11-17 13:34:21.622 | INFO     | src.api.app:shutdown_event:153 - Shutting down Code Review Assistant API
+2025-11-17 13:34:36.963 | INFO     | src.api.app:startup_event:146 - Starting Code Review Assistant API
+2025-11-17 13:34:36.964 | INFO     | src.api.app:startup_event:147 - Vector DB path: ./data/vector_db
+2025-11-17 13:34:36.964 | INFO     | src.api.app:startup_event:148 - Collection name: code_reviews
+2025-11-17 13:34:36.966 | INFO     | src.api.app:shutdown_event:153 - Shutting down Code Review Assistant API
+2025-11-17 13:34:49.346 | INFO     | src.api.app:startup_event:146 - Starting Code Review Assistant API
+2025-11-17 13:34:49.346 | INFO     | src.api.app:startup_event:147 - Vector DB path: ./data/vector_db
+2025-11-17 13:34:49.346 | INFO     | src.api.app:startup_event:148 - Collection name: code_reviews
+2025-11-17 13:34:49.348 | INFO     | src.api.app:shutdown_event:153 - Shutting down Code Review Assistant API
+2025-11-17 13:35:02.012 | INFO     | src.api.app:startup_event:146 - Starting Code Review Assistant API
+2025-11-17 13:35:02.013 | INFO     | src.api.app:startup_event:147 - Vector DB path: ./data/vector_db
+2025-11-17 13:35:02.013 | INFO     | src.api.app:startup_event:148 - Collection name: code_reviews
+2025-11-17 13:35:02.017 | INFO     | src.api.app:shutdown_event:153 - Shutting down Code Review Assistant API
+2025-11-17 13:35:12.471 | INFO     | src.api.app:startup_event:146 - Starting Code Review Assistant API
+2025-11-17 13:35:12.471 | INFO     | src.api.app:startup_event:147 - Vector DB path: ./data/vector_db
+2025-11-17 13:35:12.471 | INFO     | src.api.app:startup_event:148 - Collection name: code_reviews
+2025-11-17 13:35:22.768 | INFO     | src.api.app:startup_event:146 - Starting Code Review Assistant API
+2025-11-17 13:35:22.768 | INFO     | src.api.app:startup_event:147 - Vector DB path: ./data/vector_db
+2025-11-17 13:35:22.768 | INFO     | src.api.app:startup_event:148 - Collection name: code_reviews
+2025-11-17 13:40:21.723 | INFO     | src.api.app:startup_event:151 - Starting Code Review Assistant API
+2025-11-17 13:40:21.723 | INFO     | src.api.app:startup_event:152 - Vector DB path: ./data/vector_db
+2025-11-17 13:40:21.724 | INFO     | src.api.app:startup_event:153 - Collection name: code_reviews
+2025-11-17 13:40:28.936 | INFO     | src.api.app:startup_event:151 - Starting Code Review Assistant API
+2025-11-17 13:40:28.937 | INFO     | src.api.app:startup_event:152 - Vector DB path: ./data/vector_db
+2025-11-17 13:40:28.937 | INFO     | src.api.app:startup_event:153 - Collection name: code_reviews

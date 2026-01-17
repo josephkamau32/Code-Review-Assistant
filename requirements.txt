@@ -1,39 +1,62 @@
 # Core
-fastapi>=0.100.0
-uvicorn[standard]>=0.20.0
-pydantic>=2.0.0
-pydantic-settings>=2.0.0
-python-dotenv==1.0.0
+fastapi==0.109.2
+uvicorn[standard]==0.27.1
+pydantic==2.6.1
+pydantic-settings==2.1.0
+python-dotenv==1.0.1
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.9
+
+# Security & Rate Limiting
+slowapi==0.1.9
+bcrypt==4.1.2
 
 # Vector DB & Embeddings
-chromadb==0.5.0
-sentence-transformers==5.1.2
-openai==2.7.2
-google-generativeai==0.8.5
+chromadb==0.4.22
+sentence-transformers==2.3.1
+openai==1.12.0
+google-generativeai==0.3.2
 
 # LLM & RAG
-langchain==0.3.27
-langchain-openai==0.3.35
-langchain-community==0.3.31
-langchain-google-genai==2.0.10
+langchain==0.1.7
+langchain-openai==0.0.5
+langchain-community==0.0.20
+langchain-google-genai==1.0.1
 
 # GitHub Integration
-PyGithub==2.1.1
-gitpython==3.1.40
+PyGithub==2.2.0
+gitpython==3.1.41
 
 # Data Processing
-pandas>=2.0.0
-numpy>=1.24.0
+pandas==2.2.0
+numpy==1.26.4
 
 # Utilities
-python-multipart==0.0.6
-httpx==0.25.2
+httpx==0.26.0
 tenacity==8.2.3
+redis==5.0.1
+celery==5.3.6
 
-# Monitoring & Logging
+# Monitoring & Observability
 loguru==0.7.2
+prometheus-client==0.19.0
+opentelemetry-distro==0.43b0
+opentelemetry-instrumentation-fastapi==0.43b0
+
+# Database & Caching
+sqlalchemy==2.0.27
+alembic==1.13.1
 
 # Testing
-pytest==7.4.3
-pytest-asyncio==0.21.1
+pytest==8.0.0
+pytest-asyncio==0.23.4
 pytest-cov==4.1.0
+faker==22.6.0
+
+# Development
+black==24.2.0
+isort==5.13.2
+flake8==7.0.0
+mypy==1.8.0
+pip-audit==2.7.0  # For security scanning

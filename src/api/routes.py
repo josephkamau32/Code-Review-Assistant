@@ -1,12 +1,20 @@
-from fastapi import APIRouter, HTTPException, Header, Request, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Header, Request, BackgroundTasks, Depends
 from typing import Optional
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from loguru import logger
-from src.models.schemas import ReviewResponse, FeedbackRequest
+from src.models.schemas import ReviewResponse, FeedbackRequest, ManualReviewRequest
 from src.rag.pipeline import RAGPipeline
 from src.utils.github_client import GitHubClient
+from src.utils.auth import get_current_active_user, User
+from src.utils.rate_limiting import limit_requests
 from src.config.settings import settings
 import hmac
 import hashlib
+
+# Initialize rate limiter
+limiter = Limiter(key_func=get_remote_address)
+
 router = APIRouter()
 
 # Initialize services
@@ -18,7 +26,7 @@ except ValueError:
     github_client = None
 def verify_github_signature(payload_body: bytes, signature_header: str) -> bool:
     """Verify that the webhook signature is valid"""
-    if not signature_header:
+    if not signature_header or not settings.github_webhook_secret:
         return False
     hash_object = hmac.new(
         settings.github_webhook_secret.encode('utf-8'),
@@ -29,6 +37,7 @@ def verify_github_signature(payload_body: bytes, signature_header: str) -> bool:
 
     return hmac.compare_digest(expected_signature, signature_header)
 @router.post("/webhook/github")
+@limiter.limit("10/minute")
 async def github_webhook(
     request: Request,
     background_tasks: BackgroundTasks,
@@ -79,56 +88,125 @@ async def process_pr_review(repo_name: str, pr_number: int):
         return
 
     try:
-        # Fetch PR changes
-        pull_request = github_client.get_pr_changes(repo_name, pr_number)
+        logger.info(f"Processing review for {repo_name} PR #{pr_number}")
+        
+        # Fetch PR changes with timeout
+        try:
+            pull_request = github_client.get_pr_changes(repo_name, pr_number)
+        except Exception as e:
+            logger.error(f"Failed to fetch PR#{pr_number} changes: {type(e).__name__} - {str(e)}")
+            return
 
-        # Run RAG pipeline
-        review_response = rag_pipeline.review_pull_request(pull_request)
+        # Validate PR data
+        if not pull_request or not pull_request.changes:
+            logger.warning(f"PR#{pr_number} has no changes to review")
+            return
+
+        # Run RAG pipeline with error handling
+        try:
+            review_response = rag_pipeline.review_pull_request(pull_request)
+        except Exception as e:
+            logger.error(f"RAG pipeline failed for PR#{pr_number}: {type(e).__name__} - {str(e)}")
+            return
 
         # Post review to GitHub
-        suggestions_for_github = [
-            {
-                "category": s.category,
-                "severity": s.severity,
-                "suggestion": s.suggestion,
-                "file_path": s.file_path,
-                "line_number": s.line_number
-            }
-            for s in review_response.suggestions
-        ]
+        if review_response and review_response.suggestions:
+            try:
+                suggestions_for_github = [
+                    {
+                        "category": s.category,
+                        "severity": s.severity,
+                        "suggestion": s.suggestion,
+                        "file_path": s.file_path,
+                        "line_number": s.line_number
+                    }
+                    for s in review_response.suggestions
+                ]
 
-        github_client.post_review_comment(
-            repo_name,
-            pr_number,
-            suggestions_for_github
-        )
-
-        logger.info(f"Successfully posted review for PR #{pr_number}")
+                github_client.post_review_comment(
+                    repo_name,
+                    pr_number,
+                    suggestions_for_github
+                )
+                logger.info(f"Successfully posted {len(review_response.suggestions)} review comments for PR#{pr_number}")
+            except Exception as e:
+                logger.error(f"Failed to post review for PR#{pr_number}: {type(e).__name__} - {str(e)}")
+        else:
+            logger.info(f"No suggestions generated for PR#{pr_number}")
 
     except Exception as e:
-        logger.error(f"Error processing PR #{pr_number}: {e}")
+        logger.error(f"Unexpected error processing PR#{pr_number}: {type(e).__name__} - {str(e)}", exc_info=True)
 @router.post("/review/manual", response_model=ReviewResponse)
-async def manual_review(repo_name: str, pr_number: int):
+async def manual_review(request: ManualReviewRequest):
     """
     Manually trigger a code review for a specific PR
     Useful for testing and on-demand reviews
     """
-    if not github_client:
-        raise HTTPException(status_code=503, detail="GitHub integration not available - please configure GitHub token")
+    repo_name = request.repo_name
+    pr_number = request.pr_number
+
+    # Validate GitHub client
+    if not github_client or not github_client.client:
+        logger.error("GitHub integration not available")
+        raise HTTPException(
+            status_code=503, 
+            detail="GitHub integration not available - please configure GITHUB_TOKEN environment variable"
+        )
+
+    # Validate inputs (additional validation beyond Pydantic)
+    if not repo_name or "/" not in repo_name:
+        raise HTTPException(status_code=400, detail="Invalid repo_name format. Use 'owner/repo'")
+    if pr_number <= 0:
+        raise HTTPException(status_code=400, detail="pr_number must be a positive integer")
 
     try:
-        logger.info(f"Manual review requested for {repo_name} PR #{pr_number}")
+        logger.info(f"Manual review requested for {repo_name} PR#{pr_number}")
+        
         # Fetch PR changes
-        pull_request = github_client.get_pr_changes(repo_name, pr_number)
+        try:
+            pull_request = github_client.get_pr_changes(repo_name, pr_number)
+        except Exception as e:
+            logger.error(f"Failed to fetch PR changes: {type(e).__name__} - {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to fetch PR from GitHub: {str(e)}"
+            ) from e
+
+        # Validate PR data
+        if not pull_request:
+            raise HTTPException(status_code=404, detail=f"PR #{pr_number} not found in {repo_name}")
+        
+        if not pull_request.changes:
+            logger.warning(f"PR#{pr_number} has no code changes")
+            return ReviewResponse(
+                pr_number=pr_number,
+                repository=repo_name,
+                suggestions=[],
+                summary="No code changes found to review",
+                processing_time_seconds=0.0
+            )
 
         # Run RAG pipeline
-        review_response = rag_pipeline.review_pull_request(pull_request)
+        try:
+            review_response = rag_pipeline.review_pull_request(pull_request)
+        except Exception as e:
+            logger.error(f"RAG pipeline error: {type(e).__name__} - {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Review generation failed: {str(e)}"
+            ) from e
 
+        logger.info(f"Manual review completed for {repo_name} PR#{pr_number}: {len(review_response.suggestions)} suggestions")
         return review_response
 
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error in manual review: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Unexpected error in manual review: {type(e).__name__} - {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
+        ) from e
 @router.post("/feedback")
 async def submit_feedback(feedback: FeedbackRequest):
     """
@@ -154,10 +232,16 @@ async def get_stats():
     """Get system statistics"""
     try:
         stats = rag_pipeline.get_stats()
-        return {
-            "status": "healthy",
-            "vector_db": stats
+        # Enhanced stats for dashboard
+        enhanced_stats = {
+            "total_reviews": stats.get("total_reviews", 0),
+            "avg_processing_time": 2.3,  # Mock data - would need to track actual times
+            "active_models": 1,  # Number of active LLM models
+            "vector_count": stats.get("total_reviews", 0),
+            "review_trends": [12, 19, 15, 25, 22, 30, 28],  # Last 7 days mock data
+            "issue_distribution": [25, 20, 30, 15, 10]  # Security, Performance, Code Quality, Best Practices, Documentation
         }
+        return enhanced_stats
     except Exception as e:
         logger.error(f"Error getting stats: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -168,3 +252,4 @@ async def health_check():
         "status": "healthy",
         "service": "code-review-assistant"
     }
+
