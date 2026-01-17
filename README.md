@@ -116,6 +116,9 @@ uvicorn src.api.app:app --reload --host 0.0.0.0 --port 8000
 docker-compose up -d
 ```
 
+**Access the Web Dashboard:**
+Once running, visit `http://localhost:8000` in your browser for the modern web interface with analytics and manual review capabilities.
+
 **Manual Testing:**
 ```bash
 # Test with a real PR
@@ -414,7 +417,7 @@ Track these key metrics:
 - [ ] Integration with Jira/Linear for issue tracking
 - [ ] A/B testing framework for review quality
 - [ ] Custom evaluation metrics and benchmarks
-- [ ] Web dashboard for analytics and management
+- [x] Web dashboard for analytics and management
 - [ ] Slack/Discord bot integration
 - [ ] IDE plugins (VS Code, IntelliJ)
 - [ ] Batch processing for multiple PRs

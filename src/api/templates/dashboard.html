@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Code Review Assistant{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="display-4 fw-bold mb-0 eye-catching-title">
+                        <i class="fas fa-rocket-launch me-3" style="color: white;"></i>
+                        AI Code Review Hub
+                    </h1>
+                    <p class="text-secondary mb-0 fs-5">Intelligent code analysis powered by advanced AI</p>
+                </div>
+                <div class="text-end">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <div class="text-secondary small">System Status</div>
+                            <span class="badge bg-success fs-6 px-3 py-2">
+                                <i class="fas fa-circle me-1"></i>Online
+                            </span>
+                        </div>
+                        <button class="btn btn-outline-light" onclick="toggleTheme()">
+                            <i class="fas fa-moon"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-5">
+        <div class="col-xl-3 col-lg-6 col-md-6 mb-4">
+            <div class="stats-card primary fade-in-up slide-in-left glow-pulse">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-secondary mb-1">Total Reviews</div>
+                        <div class="stats-number" id="total-reviews">{{ stats.total_reviews|default(0) }}</div>
+                        <small class="text-success">
+                            <i class="fas fa-arrow-up me-1"></i>+12% this week
+                        </small>
+                    </div>
+                    <div class="opacity-75">
+                        <i class="fas fa-code fa-3x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-lg-6 col-md-6 mb-4">
+            <div class="stats-card success fade-in-up slide-in-left glow-pulse">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-secondary mb-1">Avg Processing Time</div>
+                        <div class="stats-number" id="avg-time">{{ "%.1f"|format(stats.avg_processing_time|default(0)) }}s</div>
+                        <small class="text-info">
+                            <i class="fas fa-bolt me-1"></i>Lightning fast
+                        </small>
+                    </div>
+                    <div class="opacity-75">
+                        <i class="fas fa-zap fa-3x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-lg-6 col-md-6 mb-4">
+            <div class="stats-card warning fade-in-up slide-in-right glow-pulse">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-secondary mb-1">Active Models</div>
+                        <div class="stats-number" id="active-models">{{ stats.active_models|default(1) }}</div>
+                        <small class="text-warning">
+                            <i class="fas fa-brain me-1"></i>AI-powered
+                        </small>
+                    </div>
+                    <div class="opacity-75">
+                        <i class="fas fa-robot fa-3x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-lg-6 col-md-6 mb-4">
+            <div class="stats-card info fade-in-up slide-in-right glow-pulse">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-secondary mb-1">Vector Database</div>
+                        <div class="stats-number" id="vector-count">{{ stats.vector_count|default(0) }}</div>
+                        <small class="text-info">
+                            <i class="fas fa-database me-1"></i>Embeddings stored
+                        </small>
+                    </div>
+                    <div class="opacity-75">
+                        <i class="fas fa-server fa-3x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row mb-5">
+        <div class="col-lg-8 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-line me-2"></i>
+                            Review Trends
+                        </h5>
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                Last 7 days
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#" onclick="changeTimeRange('7d')">Last 7 days</a></li>
+                                <li><a class="dropdown-item" href="#" onclick="changeTimeRange('30d')">Last 30 days</a></li>
+                                <li><a class="dropdown-item" href="#" onclick="changeTimeRange('90d')">Last 90 days</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="reviewTrendsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="mb-4">
+                        <i class="fas fa-chart-pie me-2"></i>
+                        Issue Distribution
+                    </h5>
+                    <div class="chart-container">
+                        <canvas id="issueDistributionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions & Activity -->
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="mb-4">
+                        <i class="fas fa-bolt me-2"></i>
+                        Quick Actions
+                    </h5>
+                    <div class="d-grid gap-3">
+                        <a href="/review" class="btn btn-primary btn-lg">
+                            <i class="fas fa-search me-2"></i>
+                            Start Manual Review
+                            <small class="d-block opacity-75">Analyze code changes instantly</small>
+                        </a>
+                        <button id="refresh-btn" class="btn btn-secondary btn-lg" onclick="refreshStats()">
+                            <i class="fas fa-sync-alt me-2"></i>
+                            Refresh Analytics
+                            <small class="d-block opacity-75">Update all statistics</small>
+                        </button>
+                        <a href="/api/v1/health" target="_blank" class="btn btn-success btn-lg">
+                            <i class="fas fa-heartbeat me-2"></i>
+                            System Health
+                            <small class="d-block opacity-75">Check service status</small>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="mb-4">
+                        <i class="fas fa-history me-2"></i>
+                        Recent Activity
+                    </h5>
+                    <div id="recent-activity" class="activity-feed">
+                        <div class="activity-item d-flex align-items-start mb-3">
+                            <div class="activity-icon bg-primary me-3">
+                                <i class="fas fa-code"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="fw-bold">System initialized</div>
+                                <small class="text-secondary">AI models loaded and ready</small>
+                                <div class="text-muted small mt-1">Just now</div>
+                            </div>
+                        </div>
+                        <div class="activity-item d-flex align-items-start mb-3">
+                            <div class="activity-icon bg-success me-3">
+                                <i class="fas fa-database"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="fw-bold">Vector database connected</div>
+                                <small class="text-secondary">{{ stats.vector_count|default(0) }} embeddings available</small>
+                                <div class="text-muted small mt-1">2 minutes ago</div>
+                            </div>
+                        </div>
+                        <div class="activity-item d-flex align-items-start">
+                            <div class="activity-icon bg-info me-3">
+                                <i class="fas fa-brain"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="fw-bold">AI models active</div>
+                                <small class="text-secondary">Ready for code analysis</small>
+                                <div class="text-muted small mt-1">5 minutes ago</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loading-overlay" class="loading-overlay" style="display: none;">
+    <div class="text-center">
+        <div class="spinner-border text-primary mb-3" role="status" style="width: 4rem; height: 4rem;">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <h4>Updating Analytics...</h4>
+        <p class="text-secondary">Fetching latest data from the system</p>
+    </div>
+</div>
+{% endblock %}

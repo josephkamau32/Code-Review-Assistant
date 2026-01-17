@@ -27,18 +27,33 @@ class RAGPipeline:
         try:
             # Validate reviews
             valid_reviews = []
-            for review in reviews:
-                if not review.review_comment or not review.repository:
-                    logger.warning("Skipping review with missing required fields")
+            for idx, review in enumerate(reviews):
+                try:
+                    # Validate required fields
+                    if not review.review_comment or not review.repository:
+                        logger.warning(f"Skipping review {idx}: missing required fields")
+                        continue
+                    
+                    # Validate field lengths
+                    if len(review.review_comment) > 10000:
+                        logger.warning(f"Skipping review {idx}: comment too long ({len(review.review_comment)} chars)")
+                        continue
+                    
+                    if review.code_snippet and len(review.code_snippet) > 50000:
+                        logger.warning(f"Skipping review {idx}: code snippet too long ({len(review.code_snippet)} chars)")
+                        continue
+                    
+                    valid_reviews.append(review)
+                    
+                except Exception as e:
+                    logger.error(f"Error validating review {idx}: {e}")
                     continue
-                if len(review.review_comment) > 10000:  # Prevent extremely long comments
-                    logger.warning(f"Skipping review with overly long comment ({len(review.review_comment)} chars)")
-                    continue
-                valid_reviews.append(review)
 
             if not valid_reviews:
                 logger.error("No valid reviews after validation")
                 return
+
+            logger.info(f"Validated {len(valid_reviews)}/{len(reviews)} reviews")
 
             # Prepare documents for embedding
             documents = []
@@ -51,20 +66,28 @@ class RAGPipeline:
 
             # Generate embeddings in batch with error handling
             logger.info("Generating embeddings...")
-            embeddings = self.embedding_service.embed_batch(documents)
+            try:
+                embeddings = self.embedding_service.embed_batch(documents)
+            except Exception as e:
+                logger.error(f"Failed to generate embeddings: {e}")
+                raise
 
             if len(embeddings) != len(valid_reviews):
                 logger.error(f"Embedding count mismatch: got {len(embeddings)}, expected {len(valid_reviews)}")
-                return
+                raise ValueError("Embedding count mismatch")
 
             # Store in vector database
             logger.info("Storing in vector database...")
-            self.vector_store.add_reviews_batch(valid_reviews, embeddings)
+            try:
+                self.vector_store.add_reviews_batch(valid_reviews, embeddings)
+            except Exception as e:
+                logger.error(f"Failed to store in vector database: {e}")
+                raise
 
             logger.info(f"Successfully ingested {len(valid_reviews)} reviews")
 
         except Exception as e:
-            logger.error(f"Error during review ingestion: {e}")
+            logger.error(f"Error during review ingestion: {type(e).__name__} - {e}")
             raise
     
     def review_pull_request(
@@ -76,7 +99,20 @@ class RAGPipeline:
         start_time = time.time()
         all_suggestions = []
         
-        logger.info(f"Starting review for PR #{pull_request.pr_number} in {pull_request.repository}")
+        # Validate input
+        if not pull_request:
+            raise ValueError("pull_request cannot be None")
+        if not pull_request.changes:
+            logger.warning(f"PR #{pull_request.pr_number} has no changes to review")
+            return ReviewResponse(
+                pr_number=pull_request.pr_number,
+                repository=pull_request.repository,
+                suggestions=[],
+                summary="No code changes found to review.",
+                processing_time_seconds=0.0
+            )
+        
+        logger.info(f"Starting review for PR #{pull_request.pr_number} in {pull_request.repository} ({len(pull_request.changes)} files)")
         
         for code_change in pull_request.changes:
             # Skip files with no meaningful changes or non-code files

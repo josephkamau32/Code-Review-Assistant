@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Manual Review - Code Review Assistant{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="fas fa-search"></i> Manual Code Review</h1>
+            <a href="/" class="btn btn-outline-primary">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-code"></i> Review Configuration</h5>
+            </div>
+            <div class="card-body">
+                <form id="review-form">
+                    <div class="mb-3">
+                        <label for="repo_name" class="form-label">Repository Name</label>
+                        <input type="text" class="form-control" id="repo_name" placeholder="owner/repo" required>
+                        <div class="form-text">Format: owner/repository-name</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="pr_number" class="form-label">Pull Request Number</label>
+                        <input type="number" class="form-control" id="pr_number" placeholder="123" min="1" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-lg" id="submit-btn">
+                        <i class="fas fa-play"></i> Start Review
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle"></i> How it Works</h5>
+            </div>
+            <div class="card-body">
+                <ol class="small">
+                    <li>Enter the repository and PR details</li>
+                    <li>AI analyzes the code changes</li>
+                    <li>Reviews similar past patterns</li>
+                    <li>Generates contextual suggestions</li>
+                    <li>Results displayed below</li>
+                </ol>
+                <hr>
+                <p class="small text-muted">
+                    <strong>Supported:</strong> Python, JavaScript, Java, Go, Rust, C++, Ruby, PHP
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Results Section -->
+<div class="row mt-4" id="results-section" style="display: none;">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="fas fa-check-circle"></i> Review Results</h5>
+                <span id="processing-time" class="badge bg-secondary"></span>
+            </div>
+            <div class="card-body">
+                <div id="loading-spinner" class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Analyzing...</span>
+                    </div>
+                    <p class="mt-2">AI is analyzing the code changes...</p>
+                </div>
+                <div id="results-content" style="display: none;">
+                    <div class="alert alert-success" id="summary"></div>
+                    <div id="suggestions-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/review.js"></script>
+{% endblock %}
