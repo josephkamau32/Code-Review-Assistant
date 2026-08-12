@@ -1,8 +1,6 @@
 import pytest
 from src.rag.pipeline import RAGPipeline
-from src.models.schemas import (
-    HistoricalReview, PullRequest, CodeChange, CodeLanguage
-)
+from src.models.schemas import HistoricalReview, PullRequest, CodeChange, CodeLanguage
 from datetime import datetime
 
 
@@ -20,7 +18,7 @@ def sample_reviews():
             comment_type="issue",
             language=CodeLanguage.PYTHON,
             created_at=datetime.now(),
-            was_resolved=True
+            was_resolved=True,
         ),
         HistoricalReview(
             pr_number=2,
@@ -32,8 +30,8 @@ def sample_reviews():
             comment_type="issue",
             language=CodeLanguage.PYTHON,
             created_at=datetime.now(),
-            was_resolved=True
-        )
+            was_resolved=True,
+        ),
     ]
 
 
@@ -53,23 +51,23 @@ def sample_pr():
                 diff="+def validate_input(data):\n+    if data is None:\n+        raise ValueError('Data cannot be None')",
                 language=CodeLanguage.PYTHON,
                 added_lines=3,
-                removed_lines=0
+                removed_lines=0,
             )
         ],
-        created_at=datetime.now()
+        created_at=datetime.now(),
     )
 
 
 def test_full_pipeline(sample_reviews, sample_pr):
     """Test complete RAG pipeline"""
     pipeline = RAGPipeline()
-    
+
     # Ingest historical reviews
     pipeline.ingest_historical_reviews(sample_reviews)
-    
+
     # Review new PR
     response = pipeline.review_pull_request(sample_pr)
-    
+
     assert response.pr_number == 100
     assert response.repository == "test/repo"
     assert isinstance(response.suggestions, list)

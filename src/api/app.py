@@ -13,7 +13,12 @@ from src.api.routes import router
 from src.config.settings import settings
 from src.utils.auth import get_current_active_user, User
 from src.utils.rate_limiting import rate_limit_exceeded_handler
-from src.utils.monitoring import MetricsMiddleware, get_metrics, health_check, detailed_health_check
+from src.utils.monitoring import (
+    MetricsMiddleware,
+    get_metrics,
+    health_check,
+    detailed_health_check,
+)
 from loguru import logger
 import uvicorn
 import os
@@ -49,7 +54,7 @@ app.add_middleware(
 # Trusted host middleware for security
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=["*"] if settings.api_host == "0.0.0.0" else [settings.api_host]
+    allowed_hosts=["*"] if settings.api_host == "0.0.0.0" else [settings.api_host],
 )
 
 # Monitoring middleware
@@ -81,6 +86,7 @@ except Exception as e:
 # Include API routes
 app.include_router(router, prefix="/api/v1")
 
+
 # Authentication routes
 @app.post("/api/v1/auth/login", response_model=dict)
 async def login(login_data: "LoginRequest"):
@@ -99,22 +105,28 @@ async def login(login_data: "LoginRequest"):
     access_token = create_access_token(data={"sub": user.username})
     return {"access_token": access_token, "token_type": "bearer"}
 
+
 @app.post("/api/v1/auth/logout")
 async def logout(current_user: User = Depends(get_current_active_user)):
     """Logout user (client should discard token)"""
     return {"message": "Successfully logged out"}
+
 
 @app.get("/api/v1/auth/me")
 async def read_users_me(current_user: User = Depends(get_current_active_user)):
     """Get current user information"""
     return current_user
 
+
 # Dashboard routes (no prefix for web interface)
 @app.get("/")
-async def dashboard(request: Request, current_user: User = Depends(get_current_active_user)):
+async def dashboard(
+    request: Request, current_user: User = Depends(get_current_active_user)
+):
     """Main dashboard page"""
     try:
         from src.rag.pipeline import RAGPipeline
+
         rag_pipeline = RAGPipeline()
         stats = rag_pipeline.get_stats()
         # Mock additional stats for display
@@ -122,18 +134,24 @@ async def dashboard(request: Request, current_user: User = Depends(get_current_a
             "total_reviews": stats.get("total_vectors", 0),
             "avg_processing_time": 3.5,  # Mock value
             "active_models": 1,
-            "vector_count": stats.get("total_vectors", 0)
+            "vector_count": stats.get("total_vectors", 0),
         }
-        return templates.TemplateResponse("dashboard.html", {"request": request, "stats": display_stats})
+        return templates.TemplateResponse(
+            "dashboard.html", {"request": request, "stats": display_stats}
+        )
     except Exception as e:
         logger.error(f"Error loading dashboard: {e}")
-        return templates.TemplateResponse("dashboard.html", {"request": request, "stats": {}})
+        return templates.TemplateResponse(
+            "dashboard.html", {"request": request, "stats": {}}
+        )
+
 
 @app.get("/stats")
 async def get_stats():
     """Get system statistics (alias for /api/v1/stats)"""
     try:
         from src.rag.pipeline import RAGPipeline
+
         rag_pipeline = RAGPipeline()
         stats = rag_pipeline.get_stats()
         # Enhanced stats for dashboard
@@ -143,25 +161,35 @@ async def get_stats():
             "active_models": 1,  # Number of active LLM models
             "vector_count": stats.get("total_reviews", 0),
             "review_trends": [12, 19, 15, 25, 22, 30, 28],  # Last 7 days mock data
-            "issue_distribution": [25, 20, 30, 15, 10]  # Security, Performance, Code Quality, Best Practices, Documentation
+            "issue_distribution": [
+                25,
+                20,
+                30,
+                15,
+                10,
+            ],  # Security, Performance, Code Quality, Best Practices, Documentation
         }
         return enhanced_stats
     except Exception as e:
         logger.error(f"Error getting stats: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.get("/review")
 async def manual_review_page(request: Request):
     """Manual review page"""
     return templates.TemplateResponse("review.html", {"request": request})
+
 
 @app.get("/favicon.ico")
 async def favicon():
     """Serve favicon"""
     return FileResponse("src/api/static/favicon.ico")
 
+
 # Configure logging
 logger.add("logs/app.log", rotation="10 MB", retention="1 week")
+
 
 @app.on_event("startup")
 async def startup_event():
@@ -173,23 +201,25 @@ async def startup_event():
         logger.info(f"LLM Provider: {settings.llm_provider}")
         logger.info(f"Vector DB path: {settings.chroma_persist_directory}")
         logger.info(f"Collection name: {settings.chroma_collection_name}")
-        
+
         # Validate critical directories
         os.makedirs(settings.chroma_persist_directory, exist_ok=True)
         os.makedirs("logs", exist_ok=True)
         os.makedirs("data", exist_ok=True)
-        
+
         # Validate API keys
         if settings.llm_provider == "openai" and not settings.openai_api_key:
             logger.error("OPENAI_API_KEY not configured")
         elif settings.llm_provider == "gemini" and not settings.gemini_api_key:
             logger.error("GEMINI_API_KEY not configured")
-        
+
         if not settings.github_token:
-            logger.warning("GITHUB_TOKEN not configured - GitHub features will be limited")
-        
+            logger.warning(
+                "GITHUB_TOKEN not configured - GitHub features will be limited"
+            )
+
         logger.info("Startup validation complete")
-        
+
     except Exception as e:
         logger.error(f"Startup error: {e}")
         raise
@@ -205,10 +235,8 @@ async def shutdown_event():
     except Exception as e:
         logger.error(f"Error during shutdown: {e}")
 
+
 if __name__ == "__main__":
     uvicorn.run(
-        "src.api.app:app",
-        host=settings.api_host,
-        port=settings.api_port,
-        reload=True
+        "src.api.app:app", host=settings.api_host, port=settings.api_port, reload=True
     )

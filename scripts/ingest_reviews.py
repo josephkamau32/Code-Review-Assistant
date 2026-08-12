@@ -5,6 +5,7 @@ Run this once to populate your vector database with historical data
 
 import sys
 import os
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.utils.github_client import GitHubClient
@@ -17,27 +18,16 @@ import argparse
 def main():
     parser = argparse.ArgumentParser(description="Ingest historical code reviews")
     parser.add_argument(
-        "--repo",
-        type=str,
-        required=True,
-        help="Repository name (format: owner/repo)"
+        "--repo", type=str, required=True, help="Repository name (format: owner/repo)"
     )
     parser.add_argument(
-        "--max-prs",
-        type=int,
-        default=100,
-        help="Maximum number of PRs to process"
+        "--max-prs", type=int, default=100, help="Maximum number of PRs to process"
     )
     parser.add_argument(
-        "--batch-size",
-        type=int,
-        default=50,
-        help="Batch size for processing reviews"
+        "--batch-size", type=int, default=50, help="Batch size for processing reviews"
     )
     parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Run without actually storing data"
+        "--dry-run", action="store_true", help="Run without actually storing data"
     )
 
     args = parser.parse_args()
@@ -55,7 +45,9 @@ def main():
         logger.error("batch-size must be between 1 and 200")
         sys.exit(1)
 
-    logger.info(f"Starting ingestion for repository: {args.repo} (max {args.max_prs} PRs, batch size {args.batch_size})")
+    logger.info(
+        f"Starting ingestion for repository: {args.repo} (max {args.max_prs} PRs, batch size {args.batch_size})"
+    )
     if args.dry_run:
         logger.info("DRY RUN MODE - No data will be stored")
 
@@ -74,13 +66,12 @@ def main():
     # Initialize services
     github_client = GitHubClient()
     rag_pipeline = RAGPipeline()
-    
+
     try:
         # Fetch historical reviews
         logger.info(f"Fetching historical reviews (max {args.max_prs} PRs)...")
         reviews = github_client.fetch_historical_reviews(
-            repo_name=args.repo,
-            max_prs=args.max_prs
+            repo_name=args.repo, max_prs=args.max_prs
         )
 
         if not reviews:
@@ -98,7 +89,9 @@ def main():
                     logger.warning(f"Skipping invalid review: missing required fields")
                     continue
                 if len(review.review_comment) > 10000:  # Reasonable limit
-                    logger.warning(f"Skipping review with overly long comment ({len(review.review_comment)} chars)")
+                    logger.warning(
+                        f"Skipping review with overly long comment ({len(review.review_comment)} chars)"
+                    )
                     continue
                 valid_reviews.append(review)
             except Exception as e:
@@ -120,12 +113,16 @@ def main():
         total_processed = 0
 
         for i in range(0, len(valid_reviews), batch_size):
-            batch = valid_reviews[i:i + batch_size]
+            batch = valid_reviews[i : i + batch_size]
             try:
-                logger.info(f"Processing batch {i//batch_size + 1}/{(len(valid_reviews) + batch_size - 1)//batch_size} ({len(batch)} reviews)")
+                logger.info(
+                    f"Processing batch {i//batch_size + 1}/{(len(valid_reviews) + batch_size - 1)//batch_size} ({len(batch)} reviews)"
+                )
                 rag_pipeline.ingest_historical_reviews(batch)
                 total_processed += len(batch)
-                logger.info(f"Batch complete. Total processed: {total_processed}/{len(valid_reviews)}")
+                logger.info(
+                    f"Batch complete. Total processed: {total_processed}/{len(valid_reviews)}"
+                )
             except Exception as e:
                 logger.error(f"Error processing batch {i//batch_size + 1}: {e}")
                 # Continue with next batch instead of failing completely
@@ -133,7 +130,9 @@ def main():
 
         # Show stats
         stats = rag_pipeline.get_stats()
-        logger.info(f"Ingestion complete! Total reviews in DB: {stats['total_reviews']}")
+        logger.info(
+            f"Ingestion complete! Total reviews in DB: {stats['total_reviews']}"
+        )
 
     except KeyboardInterrupt:
         logger.info("Ingestion interrupted by user")

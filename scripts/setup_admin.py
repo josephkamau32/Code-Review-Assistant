@@ -1,13 +1,16 @@
 """
 Setup script for initializing admin user
 """
+
 import sys
 import os
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.config.settings import settings
 from src.utils.auth import get_password_hash
 import getpass
+
 
 def main():
     print("Code Review Assistant - Admin Setup")
@@ -16,7 +19,7 @@ def main():
     if settings.admin_password_hash:
         print("Admin password is already set.")
         reset = input("Do you want to reset it? (y/N): ").lower().strip()
-        if reset != 'y':
+        if reset != "y":
             print("Setup cancelled.")
             return
 
@@ -42,6 +45,7 @@ def main():
     print("Please add this to your .env file:")
     print(f"ADMIN_PASSWORD_HASH={hashed_password}")
     print("\nSetup complete!")
+
 
 if __name__ == "__main__":
     main()

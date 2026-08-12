@@ -55,18 +55,22 @@ def test_webhook_signature_validation():
     from src.config.settings import settings
 
     # Skip test if webhook secret not configured
-    if not settings.github_webhook_secret or settings.github_webhook_secret == "your_webhook_secret_here":
+    if (
+        not settings.github_webhook_secret
+        or settings.github_webhook_secret == "your_webhook_secret_here"
+    ):
         pytest.skip("GitHub webhook secret not configured - skipping webhook test")
 
     import hmac
     import hashlib
 
     payload = b'{"action": "opened", "pull_request": {"number": 1}}'
-    signature = "sha256=" + hmac.new(
-        settings.github_webhook_secret.encode(),
-        payload,
-        hashlib.sha256
-    ).hexdigest()
+    signature = (
+        "sha256="
+        + hmac.new(
+            settings.github_webhook_secret.encode(), payload, hashlib.sha256
+        ).hexdigest()
+    )
 
     response = requests.post(
         "http://localhost:8000/api/v1/webhook/github",
@@ -74,8 +78,8 @@ def test_webhook_signature_validation():
         headers={
             "X-GitHub-Event": "pull_request",
             "X-Hub-Signature-256": signature,
-            "Content-Type": "application/json"
-        }
+            "Content-Type": "application/json",
+        },
     )
 
     assert response.status_code == 200

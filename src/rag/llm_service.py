@@ -1,23 +1,39 @@
 import json
 from typing import List, Dict, Any, Optional
 from loguru import logger
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+)
 
 # Import providers conditionally
 try:
     from openai import OpenAI, OpenAIError, APIError, RateLimitError, APIConnectionError
+
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False
+
     # Define fallback exception classes
-    class OpenAIError(Exception): pass
-    class APIError(Exception): pass
-    class RateLimitError(Exception): pass
-    class APIConnectionError(Exception): pass
+    class OpenAIError(Exception):
+        pass
+
+    class APIError(Exception):
+        pass
+
+    class RateLimitError(Exception):
+        pass
+
+    class APIConnectionError(Exception):
+        pass
+
 
 try:
     import google.generativeai as genai
     from google.api_core import exceptions as google_exceptions
+
     GEMINI_AVAILABLE = True
 except ImportError:
     GEMINI_AVAILABLE = False
@@ -29,16 +45,19 @@ from src.models.schemas import CodeChange, ReviewSuggestion
 
 class LLMServiceError(Exception):
     """Base exception for LLM service errors"""
+
     pass
 
 
 class LLMProviderError(LLMServiceError):
     """Exception raised when LLM provider API fails"""
+
     pass
 
 
 class LLMResponseParseError(LLMServiceError):
     """Exception raised when LLM response cannot be parsed"""
+
     pass
 
 
@@ -55,7 +74,9 @@ class LLMService:
 
     def _init_gemini(self):
         if not GEMINI_AVAILABLE:
-            raise ImportError("google-generativeai not installed. Install with: pip install google-generativeai")
+            raise ImportError(
+                "google-generativeai not installed. Install with: pip install google-generativeai"
+            )
 
         api_key = settings.gemini_api_key
         if not api_key or api_key == "your_gemini_api_key_here":
@@ -88,20 +109,22 @@ class LLMService:
                 models = self.client.models.list()
                 available_models = [m.id for m in models.data]
                 if self.model not in available_models:
-                    logger.warning(f"Model {self.model} not found in available OpenAI models. Available: {available_models[:10]}...")
+                    logger.warning(
+                        f"Model {self.model} not found in available OpenAI models. Available: {available_models[:10]}..."
+                    )
                 else:
                     logger.info(f"Model {self.model} is available.")
             except Exception as e:
                 logger.error(f"Failed to validate model availability: {e}")
-        
+
     def _build_review_prompt(
         self,
         code_change: CodeChange,
         similar_reviews: List[Dict[str, Any]],
-        style_guide_context: str = ""
+        style_guide_context: str = "",
     ) -> str:
         """Build the prompt for code review generation"""
-        
+
         # Format similar reviews
         similar_reviews_text = ""
         if similar_reviews:
@@ -114,7 +137,13 @@ Comment: {review['document'].split('Review Comment:')[1].strip()}
 Was Resolved: {review['metadata'].get('was_resolved', 'Unknown')}
 ---
 """
-        
+
+        style_guide_str = (
+            f"### Style Guide Context:\n{style_guide_context}\n"
+            if style_guide_context
+            else ""
+        )
+
         prompt = f"""You are an experienced code reviewer. Review the following code change and provide constructive feedback.
 
 ### Code Change:
@@ -126,7 +155,7 @@ Diff:
 
 {similar_reviews_text}
 
-{f"### Style Guide Context:\n{style_guide_context}\n" if style_guide_context else ""}
+{style_guide_str}
 
 ### Instructions:
 1. Analyze the code for potential issues (bugs, performance, security, best practices)
@@ -152,17 +181,19 @@ Diff:
 Provide your response as valid JSON only, no additional text."""
 
         return prompt
-    
+
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=4, max=10),
-        retry=retry_if_exception_type((APIConnectionError, RateLimitError) if OPENAI_AVAILABLE else Exception)
+        retry=retry_if_exception_type(
+            (APIConnectionError, RateLimitError) if OPENAI_AVAILABLE else Exception
+        ),
     )
     def generate_review(
         self,
         code_change: CodeChange,
         similar_reviews: List[Dict[str, Any]],
-        style_guide_context: str = ""
+        style_guide_context: str = "",
     ) -> Dict[str, Any]:
         """Generate code review using LLM with RAG context"""
 
@@ -176,89 +207,112 @@ Provide your response as valid JSON only, no additional text."""
                         "suggestion": "Consider adding input validation for better robustness.",
                         "severity": "warning",
                         "category": "best_practice",
-                        "confidence": 0.8
+                        "confidence": 0.8,
                     }
                 ],
-                "summary": "Mock review generated for testing purposes."
+                "summary": "Mock review generated for testing purposes.",
             }
 
-        prompt = self._build_review_prompt(code_change, similar_reviews, style_guide_context)
+        prompt = self._build_review_prompt(
+            code_change, similar_reviews, style_guide_context
+        )
 
         try:
             if self.provider == "gemini":
-                result = self._generate_review_gemini(code_change, similar_reviews, style_guide_context, prompt)
+                result = self._generate_review_gemini(
+                    code_change, similar_reviews, style_guide_context, prompt
+                )
             else:  # openai
-                result = self._generate_review_openai(code_change, similar_reviews, style_guide_context, prompt)
-            
+                result = self._generate_review_openai(
+                    code_change, similar_reviews, style_guide_context, prompt
+                )
+
             # Validate result structure
             if not isinstance(result, dict):
                 raise LLMResponseParseError(f"Invalid result type: {type(result)}")
-            if 'suggestions' not in result:
-                logger.warning("LLM response missing 'suggestions' key, adding empty list")
-                result['suggestions'] = []
-            if 'summary' not in result:
+            if "suggestions" not in result:
+                logger.warning(
+                    "LLM response missing 'suggestions' key, adding empty list"
+                )
+                result["suggestions"] = []
+            if "summary" not in result:
                 logger.warning("LLM response missing 'summary' key, adding default")
-                result['summary'] = "Review completed."
-            
+                result["summary"] = "Review completed."
+
             return result
-            
+
         except (APIError, RateLimitError, APIConnectionError) as e:
-            logger.error(f"OpenAI API error for {code_change.file_path}: {type(e).__name__} - {str(e)}")
+            logger.error(
+                f"OpenAI API error for {code_change.file_path}: {type(e).__name__} - {str(e)}"
+            )
             raise LLMProviderError(f"OpenAI API failed: {str(e)}") from e
-        
+
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse LLM response as JSON for {code_change.file_path}: {str(e)}")
+            logger.error(
+                f"Failed to parse LLM response as JSON for {code_change.file_path}: {str(e)}"
+            )
             raise LLMResponseParseError(f"Invalid JSON response: {str(e)}") from e
-        
+
         except Exception as e:
-            logger.error(f"Unexpected error generating review for {code_change.file_path}: {type(e).__name__} - {str(e)}")
+            logger.error(
+                f"Unexpected error generating review for {code_change.file_path}: {type(e).__name__} - {str(e)}"
+            )
             # Try fallback to other provider if available
-            if self.provider == "openai" and GEMINI_AVAILABLE and settings.gemini_api_key:
+            if (
+                self.provider == "openai"
+                and GEMINI_AVAILABLE
+                and settings.gemini_api_key
+            ):
                 logger.info("Attempting fallback to Gemini provider")
                 try:
                     original_provider = self.provider
                     self.provider = "gemini"
                     self._init_gemini()
-                    result = self._generate_review_gemini(code_change, similar_reviews, style_guide_context, prompt)
+                    result = self._generate_review_gemini(
+                        code_change, similar_reviews, style_guide_context, prompt
+                    )
                     self.provider = original_provider  # Reset
                     return result
                 except Exception as fallback_error:
                     logger.error(f"Fallback to Gemini also failed: {fallback_error}")
-            
+
             raise LLMServiceError(f"Failed to generate review: {str(e)}") from e
 
-    def _generate_review_openai(self, code_change, similar_reviews, style_guide_context, prompt):
+    def _generate_review_openai(
+        self, code_change, similar_reviews, style_guide_context, prompt
+    ):
         """Generate review using OpenAI"""
-        logger.debug(f"Generating OpenAI review for {code_change.file_path}, similar_reviews_count: {len(similar_reviews)}")
-        
+        logger.debug(
+            f"Generating OpenAI review for {code_change.file_path}, similar_reviews_count: {len(similar_reviews)}"
+        )
+
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are an expert code reviewer. Always respond with valid JSON."
+                        "content": "You are an expert code reviewer. Always respond with valid JSON.",
                     },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
+                    {"role": "user", "content": prompt},
                 ],
                 temperature=settings.temperature,
                 max_tokens=settings.max_tokens,
-                response_format={"type": "json_object"}  # Ensure JSON response
+                response_format={"type": "json_object"},  # Ensure JSON response
             )
 
             content = response.choices[0].message.content
             logger.debug(f"OpenAI response content length: {len(content)}")
-            
+
             if not content:
                 raise LLMResponseParseError("Empty response from OpenAI")
-            
+
             result = json.loads(content)
-            logger.info(f"Generated OpenAI review for {code_change.file_path}, suggestions_count: {len(result.get('suggestions', []))}")
+            logger.info(
+                f"Generated OpenAI review for {code_change.file_path}, suggestions_count: {len(result.get('suggestions', []))}"
+            )
             return result
-            
+
         except (APIError, RateLimitError, APIConnectionError) as e:
             logger.error(f"OpenAI API error: {type(e).__name__} - {str(e)}")
             raise
@@ -269,42 +323,53 @@ Provide your response as valid JSON only, no additional text."""
             logger.error(f"Unexpected OpenAI error: {type(e).__name__} - {str(e)}")
             raise
 
-    def _generate_review_gemini(self, code_change, similar_reviews, style_guide_context, prompt):
+    def _generate_review_gemini(
+        self, code_change, similar_reviews, style_guide_context, prompt
+    ):
         """Generate review using Google Gemini"""
-        logger.debug(f"Generating Gemini review for {code_change.file_path}, similar_reviews_count: {len(similar_reviews)}")
+        logger.debug(
+            f"Generating Gemini review for {code_change.file_path}, similar_reviews_count: {len(similar_reviews)}"
+        )
 
         try:
             # Configure generation parameters
             generation_config = genai.types.GenerationConfig(
                 temperature=settings.temperature,
                 max_output_tokens=settings.max_tokens,
-                response_mime_type="application/json"
+                response_mime_type="application/json",
             )
 
             # Create a new chat session for each request to avoid context issues
             chat = self.client.start_chat(history=[])
 
-            response = chat.send_message(
-                prompt,
-                generation_config=generation_config
-            )
+            response = chat.send_message(prompt, generation_config=generation_config)
 
             content = response.text
             logger.debug(f"Gemini response content length: {len(content)}")
-            
+
             if not content:
                 raise LLMResponseParseError("Empty response from Gemini")
 
             result = json.loads(content)
-            logger.info(f"Generated Gemini review for {code_change.file_path}, suggestions_count: {len(result.get('suggestions', []))}")
+            logger.info(
+                f"Generated Gemini review for {code_change.file_path}, suggestions_count: {len(result.get('suggestions', []))}"
+            )
             return result
-            
+
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse Gemini response as JSON: {e}, content: {content[:500] if content else 'No content'}...")
+            logger.error(
+                f"Failed to parse Gemini response as JSON: {e}, content: {content[:500] if content else 'No content'}..."
+            )
             raise LLMResponseParseError(f"Invalid JSON from Gemini: {str(e)}") from e
-        
+
         except Exception as e:
-            if google_exceptions and isinstance(e, (google_exceptions.ResourceExhausted, google_exceptions.TooManyRequests)):
+            if google_exceptions and isinstance(
+                e,
+                (
+                    google_exceptions.ResourceExhausted,
+                    google_exceptions.TooManyRequests,
+                ),
+            ):
                 logger.error(f"Gemini rate limit error: {str(e)}")
                 raise RateLimitError(f"Gemini rate limit: {str(e)}") from e
             elif google_exceptions and isinstance(e, google_exceptions.GoogleAPIError):
@@ -313,17 +378,17 @@ Provide your response as valid JSON only, no additional text."""
             else:
                 logger.error(f"Unexpected Gemini error: {type(e).__name__} - {str(e)}")
                 raise
-    
+
     def generate_summary(self, all_suggestions: List[ReviewSuggestion]) -> str:
         """Generate overall PR summary"""
         if not all_suggestions:
             return "No issues found. Code looks good!"
-        
+
         # Group by severity
         errors = [s for s in all_suggestions if s.severity == "error"]
         warnings = [s for s in all_suggestions if s.severity == "warning"]
         info = [s for s in all_suggestions if s.severity == "info"]
-        
+
         summary_parts = []
         if errors:
             summary_parts.append(f"{len(errors)} critical issue(s)")
@@ -331,5 +396,5 @@ Provide your response as valid JSON only, no additional text."""
             summary_parts.append(f"{len(warnings)} warning(s)")
         if info:
             summary_parts.append(f"{len(info)} suggestion(s)")
-        
+
         return f"Found {', '.join(summary_parts)}. Please review the detailed feedback below."

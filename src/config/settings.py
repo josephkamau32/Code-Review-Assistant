@@ -46,7 +46,11 @@ class Settings(BaseSettings):
     rate_limit_window_seconds: int = 60
 
     # CORS
-    cors_origins: List[str] = ["http://localhost:3000", "http://localhost:8000", "http://127.0.0.1:8000"]
+    cors_origins: List[str] = [
+        "http://localhost:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ]
     cors_allow_credentials: bool = True
     cors_allow_methods: List[str] = ["*"]
     cors_allow_headers: List[str] = ["*"]
@@ -71,29 +75,36 @@ class Settings(BaseSettings):
     enable_prometheus: bool = True
     log_level: str = "INFO"
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def validate_api_keys(self):
         """Validate that required API keys are set based on provider"""
         if self.llm_provider == "openai":
             if not self.openai_api_key:
-                raise ValueError("OPENAI_API_KEY must be set when using OpenAI provider")
+                raise ValueError(
+                    "OPENAI_API_KEY must be set when using OpenAI provider"
+                )
         elif self.llm_provider == "gemini":
             if not self.gemini_api_key:
-                raise ValueError("GEMINI_API_KEY must be set when using Gemini provider")
+                raise ValueError(
+                    "GEMINI_API_KEY must be set when using Gemini provider"
+                )
         else:
-            raise ValueError(f"Invalid LLM provider: {self.llm_provider}. Must be 'openai' or 'gemini'")
-        
+            raise ValueError(
+                f"Invalid LLM provider: {self.llm_provider}. Must be 'openai' or 'gemini'"
+            )
+
         return self
 
-    @validator('secret_key', 'jwt_secret_key', pre=True, always=True)
+    @validator("secret_key", "jwt_secret_key", pre=True, always=True)
     def warn_default_secrets(cls, v, field):
         """Warn if using default/random secrets in production"""
-        if os.getenv('ENVIRONMENT') == 'production' and (not v or len(v) < 32):
+        if os.getenv("ENVIRONMENT") == "production" and (not v or len(v) < 32):
             import warnings
+
             warnings.warn(
                 f"{field.name} is using a default or weak value. "
                 "Please set a strong secret in production!",
-                UserWarning
+                UserWarning,
             )
         return v or secrets.token_urlsafe(32)
 

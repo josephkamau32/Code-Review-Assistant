@@ -4,6 +4,7 @@ Script to process and store coding style guides
 
 import sys
 import os
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.rag.embeddings import EmbeddingService
@@ -28,8 +29,8 @@ def chunk_style_guide(text: str, chunk_size: int = 500, overlap: int = 50) -> li
         return [text]  # Return as-is if smaller than chunk size
 
     for i in range(0, len(words), chunk_size - overlap):
-        chunk_words = words[i:i + chunk_size]
-        chunk = ' '.join(chunk_words)
+        chunk_words = words[i : i + chunk_size]
+        chunk = " ".join(chunk_words)
         if chunk:  # Only add non-empty chunks
             chunks.append(chunk)
 
@@ -42,31 +43,23 @@ def main():
         "--file",
         type=str,
         required=True,
-        help="Path to style guide file (markdown, text, etc.)"
+        help="Path to style guide file (markdown, text, etc.)",
     )
     parser.add_argument(
         "--language",
         type=str,
         default="python",
         choices=["python", "javascript", "typescript", "java", "go", "rust"],
-        help="Programming language for this style guide"
+        help="Programming language for this style guide",
     )
     parser.add_argument(
-        "--chunk-size",
-        type=int,
-        default=500,
-        help="Chunk size in words"
+        "--chunk-size", type=int, default=500, help="Chunk size in words"
     )
     parser.add_argument(
-        "--overlap",
-        type=int,
-        default=50,
-        help="Overlap between chunks in words"
+        "--overlap", type=int, default=50, help="Overlap between chunks in words"
     )
     parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Run without actually storing data"
+        "--dry-run", action="store_true", help="Run without actually storing data"
     )
 
     args = parser.parse_args()
@@ -107,11 +100,11 @@ def main():
     try:
         # Read style guide with encoding detection
         try:
-            with open(args.file, 'r', encoding='utf-8') as f:
+            with open(args.file, "r", encoding="utf-8") as f:
                 content = f.read()
         except UnicodeDecodeError:
             # Fallback to latin-1 for files with unknown encoding
-            with open(args.file, 'r', encoding='latin-1') as f:
+            with open(args.file, "r", encoding="latin-1") as f:
                 content = f.read()
             logger.warning(f"File {args.file} has non-UTF-8 encoding, using latin-1")
 
@@ -120,11 +113,13 @@ def main():
             sys.exit(1)
 
         # Generate content hash for deduplication
-        content_hash = hashlib.md5(content.encode('utf-8')).hexdigest()
+        content_hash = hashlib.md5(content.encode("utf-8")).hexdigest()
         logger.info(f"Content hash: {content_hash[:8]}...")
 
         # Chunk the content
-        chunks = chunk_style_guide(content, chunk_size=args.chunk_size, overlap=args.overlap)
+        chunks = chunk_style_guide(
+            content, chunk_size=args.chunk_size, overlap=args.overlap
+        )
         logger.info(f"Split style guide into {len(chunks)} chunks")
 
         if not chunks:
@@ -151,7 +146,7 @@ def main():
                 comment_type="suggestion",
                 language=language_enum,
                 created_at=datetime.now(),
-                was_resolved=True
+                was_resolved=True,
             )
             reviews.append(review)
 

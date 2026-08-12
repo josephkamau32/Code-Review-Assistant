@@ -1,6 +1,7 @@
 """
 Rate limiting utilities using Redis
 """
+
 from fastapi import Request, HTTPException
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -14,9 +15,7 @@ redis_client = redis.from_url(settings.redis_url)
 
 # Initialize rate limiter
 limiter = Limiter(
-    key_func=get_remote_address,
-    storage_uri=settings.redis_url,
-    strategy="fixed-window"
+    key_func=get_remote_address, storage_uri=settings.redis_url, strategy="fixed-window"
 )
 
 
@@ -44,8 +43,7 @@ def check_rate_limit(request: Request) -> None:
     # Check if limit exceeded
     if current_count >= settings.rate_limit_requests:
         raise HTTPException(
-            status_code=429,
-            detail="Rate limit exceeded. Please try again later."
+            status_code=429, detail="Rate limit exceeded. Please try again later."
         )
 
     # Increment counter
@@ -56,7 +54,9 @@ def check_rate_limit(request: Request) -> None:
 # Rate limit decorators for specific endpoints
 def limit_requests():
     """Decorator for rate limiting"""
-    return limiter.limit(f"{settings.rate_limit_requests}/{settings.rate_limit_window_seconds}s")
+    return limiter.limit(
+        f"{settings.rate_limit_requests}/{settings.rate_limit_window_seconds}s"
+    )
 
 
 # Custom rate limit exceeded handler
@@ -65,5 +65,5 @@ def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
     return {
         "error": "Rate limit exceeded",
         "detail": f"Too many requests. Limit: {settings.rate_limit_requests} per {settings.rate_limit_window_seconds} seconds",
-        "retry_after": settings.rate_limit_window_seconds
+        "retry_after": settings.rate_limit_window_seconds,
     }

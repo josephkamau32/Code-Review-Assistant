@@ -1,6 +1,7 @@
 """
 Authentication and authorization utilities
 """
+
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from fastapi import Depends, HTTPException, status
@@ -42,17 +43,23 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(hours=settings.jwt_expiration_hours)
+        expire = datetime.now(timezone.utc) + timedelta(
+            hours=settings.jwt_expiration_hours
+        )
 
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+    encoded_jwt = jwt.encode(
+        to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm
+    )
     return encoded_jwt
 
 
 def verify_token(token: str) -> Optional[TokenData]:
     """Verify JWT token"""
     try:
-        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+        payload = jwt.decode(
+            token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm]
+        )
         username: str = payload.get("sub")
         if username is None:
             return None
@@ -64,12 +71,16 @@ def verify_token(token: str) -> Optional[TokenData]:
 def authenticate_user(username: str, password: str) -> Optional[User]:
     """Authenticate a user"""
     if username == settings.admin_username:
-        if settings.admin_password_hash and verify_password(password, settings.admin_password_hash):
+        if settings.admin_password_hash and verify_password(
+            password, settings.admin_password_hash
+        ):
             return User(username=username)
     return None
 
 
-async def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)) -> User:
+async def get_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+) -> User:
     """Get current authenticated user"""
     if not settings.enable_authentication:
         # Return default admin user when auth is disabled
@@ -94,7 +105,7 @@ async def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] =
     # Check if user still exists and is valid
     if token_data.username == settings.admin_username:
         return User(username=token_data.username)
-    
+
     # For future user database implementation
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -102,7 +113,9 @@ async def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] =
     )
 
 
-async def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
+async def get_current_active_user(
+    current_user: User = Depends(get_current_user),
+) -> User:
     """Get current active user"""
     if current_user.disabled:
         raise HTTPException(status_code=400, detail="Inactive user")
@@ -110,7 +123,9 @@ async def get_current_active_user(current_user: User = Depends(get_current_user)
 
 
 # Optional authentication for public endpoints
-async def get_optional_current_user(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)) -> Optional[User]:
+async def get_optional_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+) -> Optional[User]:
     """Get current user if authenticated, None otherwise"""
     if not credentials:
         return None
