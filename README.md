@@ -3,6 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com/)
+[![CI](https://github.com/josephkamau32/Code-Review-Assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/josephkamau32/Code-Review-Assistant/actions/workflows/ci.yml)
 
 An intelligent, AI-powered code review assistant that leverages Retrieval-Augmented Generation (RAG) to provide context-aware, consistent code reviews based on historical review patterns and customizable style guides.
 
