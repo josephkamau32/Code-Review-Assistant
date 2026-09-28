@@ -1,5 +1,8 @@
 # Environment variables
 .env
+.env.*
+!.env.example
+!.env.production.example
 
 # Python
 __pycache__/
@@ -25,6 +28,7 @@ wheels/
 MANIFEST
 
 # Virtual environments
+.venv/
 venv/
 env/
 ENV/
@@ -37,13 +41,18 @@ ENV/
 *.log
 logs/
 
-# Data
+# Data & Databases
+*.db
+*.sqlite3
+data/cache/
 data/vector_db/
 data/processed/
 data/raw/
 
-# Coverage
+# Coverage & Testing
 .coverage
+coverage.xml
+htmlcov/
 .pytest_cache/
 
 # OS

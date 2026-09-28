@@ -1,3 +1,6 @@
+# Version control
+.git/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -10,6 +13,7 @@ build/
 .eggs/
 
 # Virtual environments
+.venv/
 venv/
 env/
 ENV/
@@ -32,6 +36,7 @@ logs/
 *.log
 
 # Testing
+tests/
 .pytest_cache/
 .coverage
 htmlcov/
