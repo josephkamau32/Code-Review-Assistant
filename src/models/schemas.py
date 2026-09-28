@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from enum import Enum
@@ -61,11 +61,6 @@ class ReviewResponse(BaseModel):
     processing_time_seconds: float
 
 
-class ManualReviewRequest(BaseModel):
-    repo_name: str
-    pr_number: int
-
-
 class FeedbackRequest(BaseModel):
     suggestion_id: str
     pr_number: int
@@ -98,8 +93,9 @@ class LoginRequest(BaseModel):
     username: str
     password: str
 
-    @validator("username")
-    def username_must_be_valid(cls, v):
+    @field_validator("username")
+    @classmethod
+    def username_must_be_valid(cls, v: str) -> str:
         if not v or not v.strip():
             raise ValueError("Username cannot be empty")
         if len(v) < 3:
@@ -110,8 +106,9 @@ class LoginRequest(BaseModel):
             )
         return v.strip()
 
-    @validator("password")
-    def password_must_be_valid(cls, v):
+    @field_validator("password")
+    @classmethod
+    def password_must_be_valid(cls, v: str) -> str:
         if not v:
             raise ValueError("Password cannot be empty")
         if len(v) < 8:
@@ -125,8 +122,9 @@ class UserCreate(BaseModel):
     full_name: Optional[str] = None
     password: str
 
-    @validator("username")
-    def username_must_be_valid(cls, v):
+    @field_validator("username")
+    @classmethod
+    def username_must_be_valid(cls, v: str) -> str:
         if not v or not v.strip():
             raise ValueError("Username cannot be empty")
         if len(v) < 3:
@@ -137,8 +135,9 @@ class UserCreate(BaseModel):
             )
         return v.strip()
 
-    @validator("email")
-    def email_must_be_valid(cls, v):
+    @field_validator("email")
+    @classmethod
+    def email_must_be_valid(cls, v: str) -> str:
         if not v or not v.strip():
             raise ValueError("Email cannot be empty")
         email_regex = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
@@ -146,8 +145,9 @@ class UserCreate(BaseModel):
             raise ValueError("Invalid email format")
         return v.strip().lower()
 
-    @validator("password")
-    def password_must_be_valid(cls, v):
+    @field_validator("password")
+    @classmethod
+    def password_must_be_valid(cls, v: str) -> str:
         if not v:
             raise ValueError("Password cannot be empty")
         if len(v) < 8:
@@ -168,8 +168,9 @@ class CodeChange(BaseModel):
     added_lines: int = Field(..., ge=0)
     removed_lines: int = Field(..., ge=0)
 
-    @validator("file_path")
-    def file_path_must_be_valid(cls, v):
+    @field_validator("file_path")
+    @classmethod
+    def file_path_must_be_valid(cls, v: str) -> str:
         if not v or not v.strip():
             raise ValueError("File path cannot be empty")
         if len(v) > 500:
@@ -179,8 +180,9 @@ class CodeChange(BaseModel):
             raise ValueError("Invalid file path")
         return v.strip()
 
-    @validator("diff")
-    def diff_must_be_valid(cls, v):
+    @field_validator("diff")
+    @classmethod
+    def diff_must_be_valid(cls, v: str) -> str:
         if v is not None and len(v) > 100000:  # 100KB limit
             raise ValueError("Diff too large")
         return v
@@ -196,16 +198,18 @@ class PullRequest(BaseModel):
     changes: List[CodeChange]
     created_at: datetime
 
-    @validator("title")
-    def title_must_be_valid(cls, v):
+    @field_validator("title")
+    @classmethod
+    def title_must_be_valid(cls, v: str) -> str:
         if not v or not v.strip():
             raise ValueError("Title cannot be empty")
         if len(v) > 200:
             raise ValueError("Title too long")
         return v.strip()
 
-    @validator("repository")
-    def repository_must_be_valid(cls, v):
+    @field_validator("repository")
+    @classmethod
+    def repository_must_be_valid(cls, v: str) -> str:
         if not v or not v.strip():
             raise ValueError("Repository cannot be empty")
         # GitHub repo format: owner/repo
@@ -216,8 +220,9 @@ class PullRequest(BaseModel):
             raise ValueError("Invalid repository format")
         return v.strip()
 
-    @validator("changes")
-    def changes_must_not_be_empty(cls, v):
+    @field_validator("changes")
+    @classmethod
+    def changes_must_not_be_empty(cls, v: List[CodeChange]) -> List[CodeChange]:
         if not v:
             raise ValueError("Changes cannot be empty")
         if len(v) > 100:  # Reasonable limit
@@ -229,8 +234,9 @@ class ManualReviewRequest(BaseModel):
     repo_name: str
     pr_number: int = Field(..., gt=0)
 
-    @validator("repo_name")
-    def repo_name_must_be_valid(cls, v):
+    @field_validator("repo_name")
+    @classmethod
+    def repo_name_must_be_valid(cls, v: str) -> str:
         if not v or not v.strip():
             raise ValueError("Repository name cannot be empty")
         # GitHub repo format: owner/repo
