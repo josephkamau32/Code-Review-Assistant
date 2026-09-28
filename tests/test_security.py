@@ -22,6 +22,22 @@ class TestAuthentication:
         assert response.status_code == 200
         assert response.json()["status"] == "healthy"
 
+    def test_login_with_valid_credentials(self, monkeypatch):
+        """Login should succeed with valid credentials and return access token"""
+        test_password = "securePassword123"
+        monkeypatch.setattr(settings, "admin_username", "admin")
+        monkeypatch.setattr(
+            settings, "admin_password_hash", get_password_hash(test_password)
+        )
+        response = client.post(
+            "/api/v1/auth/login",
+            json={"username": "admin", "password": test_password},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "access_token" in data
+        assert data["token_type"] == "bearer"
+
     def test_login_with_invalid_credentials(self):
         """Login should fail with invalid credentials"""
         if not settings.enable_authentication:

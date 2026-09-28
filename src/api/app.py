@@ -11,7 +11,13 @@ from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
 from src.api.routes import router
 from src.config.settings import settings
-from src.utils.auth import get_current_active_user, User
+from src.models.schemas import LoginRequest
+from src.utils.auth import (
+    get_current_active_user,
+    User,
+    authenticate_user,
+    create_access_token,
+)
 from src.utils.rate_limiting import rate_limit_exceeded_handler
 from src.utils.monitoring import (
     MetricsMiddleware,
@@ -89,11 +95,8 @@ app.include_router(router, prefix="/api/v1")
 
 # Authentication routes
 @app.post("/api/v1/auth/login", response_model=dict)
-async def login(login_data: "LoginRequest"):
+async def login(login_data: LoginRequest):
     """Authenticate user and return access token"""
-    from src.models.schemas import LoginRequest
-    from src.utils.auth import authenticate_user, create_access_token
-
     user = authenticate_user(login_data.username, login_data.password)
     if not user:
         raise HTTPException(
