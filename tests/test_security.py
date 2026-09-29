@@ -196,15 +196,29 @@ class TestWebhookSecurity:
 class TestCORS:
     """Test CORS configuration"""
 
-    def test_cors_headers_present(self):
-        """CORS headers should be present in responses"""
-        response = client.options("/api/v1/health")
-        # Check for CORS headers
-        assert (
-            "access-control-allow-origin"
-            in [h.lower() for h in response.headers.keys()]
-            or response.status_code == 200
-        )  # FastAPI may handle this differently
+    def test_cors_preflight_headers_present(self):
+        """CORS preflight request should return appropriate access control headers"""
+        origin = settings.cors_origins[0] if settings.cors_origins else "http://localhost:3000"
+        response = client.options(
+            "/api/v1/health",
+            headers={
+                "Origin": origin,
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+        assert response.status_code == 200
+        headers_lower = {k.lower(): v for k, v in response.headers.items()}
+        assert "access-control-allow-origin" in headers_lower
+        assert headers_lower["access-control-allow-origin"] == origin
+
+    def test_cors_headers_on_get_request(self):
+        """GET request with Origin header should include CORS headers"""
+        origin = settings.cors_origins[0] if settings.cors_origins else "http://localhost:3000"
+        response = client.get("/api/v1/health", headers={"Origin": origin})
+        assert response.status_code == 200
+        headers_lower = {k.lower(): v for k, v in response.headers.items()}
+        assert "access-control-allow-origin" in headers_lower
+        assert headers_lower["access-control-allow-origin"] == origin
 
 
 class TestErrorHandling:
