@@ -44,7 +44,8 @@ class TestAuthentication:
             pytest.skip("Authentication disabled")
 
         response = client.post(
-            "/api/v1/auth/login", json={"username": "invalid", "password": "wrong"}
+            "/api/v1/auth/login",
+            json={"username": "invalid_user", "password": "wrongpassword123"},
         )
         assert response.status_code == 401
 
@@ -103,6 +104,12 @@ class TestAuthentication:
         headers = {"Authorization": f"Bearer {expired_token}"}
         response = client.get("/api/v1/auth/me", headers=headers)
         assert response.status_code == 401
+
+    def test_protected_endpoint_allows_when_auth_disabled(self, auth_disabled):
+        """When authentication is disabled, endpoints should allow access with default admin"""
+        response = client.get("/api/v1/auth/me")
+        assert response.status_code == 200
+        assert response.json()["username"] == settings.admin_username
 
 
 class TestInputValidation:
