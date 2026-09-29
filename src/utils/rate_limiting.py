@@ -3,6 +3,7 @@ Rate limiting utilities using Redis
 """
 
 from fastapi import Request, HTTPException
+from fastapi.responses import JSONResponse
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.middleware import SlowAPIMiddleware
@@ -60,10 +61,14 @@ def limit_requests():
 
 
 # Custom rate limit exceeded handler
-def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
+def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
     """Handle rate limit exceeded errors"""
-    return {
-        "error": "Rate limit exceeded",
-        "detail": f"Too many requests. Limit: {settings.rate_limit_requests} per {settings.rate_limit_window_seconds} seconds",
-        "retry_after": settings.rate_limit_window_seconds,
-    }
+    return JSONResponse(
+        status_code=429,
+        content={
+            "error": "Rate limit exceeded",
+            "detail": f"Too many requests. Limit: {settings.rate_limit_requests} per {settings.rate_limit_window_seconds} seconds",
+            "retry_after": settings.rate_limit_window_seconds,
+        },
+        headers={"Retry-After": str(settings.rate_limit_window_seconds)},
+    )

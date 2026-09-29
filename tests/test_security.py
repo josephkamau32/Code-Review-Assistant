@@ -149,19 +149,26 @@ class TestRateLimiting:
 
         # Make many rapid requests
         responses = []
-        for _ in range(15):  # More than the typical limit
-            response = client.post(
-                "/api/v1/webhook/github",
-                json={"action": "test"},
-                headers={"X-Hub-Signature-256": "test"},
-            )
-            responses.append(response.status_code)
-            time.sleep(0.1)  # Small delay
+        try:
+            for _ in range(15):  # More than the typical limit
+                response = client.post(
+                    "/api/v1/webhook/github",
+                    json={"action": "test"},
+                    headers={"X-Hub-Signature-256": "test"},
+                )
+                responses.append(response.status_code)
+                time.sleep(0.05)
 
-        # At least one should be rate limited
-        assert (
-            429 in responses or 401 in responses
-        )  # 429 = Too Many Requests, 401 = Invalid signature
+            # At least one should be rate limited
+            assert (
+                429 in responses or 401 in responses
+            )  # 429 = Too Many Requests, 401 = Invalid signature
+        finally:
+            from src.api.routes import limiter as routes_limiter
+
+            routes_limiter.reset()
+            if hasattr(app.state, "limiter"):
+                app.state.limiter.reset()
 
 
 class TestWebhookSecurity:
