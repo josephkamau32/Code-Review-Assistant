@@ -40,6 +40,7 @@ ENV/
 # Logs
 *.log
 logs/
+logs/*.log
 
 # Data & Databases
 *.db
