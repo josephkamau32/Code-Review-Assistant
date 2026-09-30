@@ -38,8 +38,15 @@ class EmbeddingService:
             )
 
         api_key = settings.gemini_api_key
-        if not api_key or api_key == "your_gemini_api_key_here":
-            logger.warning("Using mock embedding service - no Gemini API key provided")
+        if (
+            not api_key
+            or api_key == "your_gemini_api_key_here"
+            or api_key.startswith("dummy-")
+            or settings.environment == "testing"
+        ):
+            logger.warning(
+                "Using mock embedding service - no Gemini API key provided or test environment active"
+            )
             self.mock_mode = True
             self.model = settings.gemini_embedding_model
         else:
@@ -56,8 +63,15 @@ class EmbeddingService:
             raise ImportError("openai not installed. Install with: pip install openai")
 
         api_key = settings.openai_api_key
-        if api_key == "your_openai_api_key_here" or not api_key:
-            logger.warning("Using mock embedding service - no OpenAI API key provided")
+        if (
+            not api_key
+            or api_key == "your_openai_api_key_here"
+            or api_key.startswith("sk-test-")
+            or settings.environment == "testing"
+        ):
+            logger.warning(
+                "Using mock embedding service - no OpenAI API key provided or test environment active"
+            )
             self.mock_mode = True
             self.model = settings.embedding_model
         else:
@@ -67,18 +81,6 @@ class EmbeddingService:
             logger.info(
                 f"Initialized OpenAI embedding service with model: {self.model}"
             )
-            # Add logging to validate model availability
-            try:
-                models = self.client.models.list()
-                available_models = [m.id for m in models.data]
-                if self.model not in available_models:
-                    logger.warning(
-                        f"Embedding model {self.model} not found in available OpenAI models. Available: {available_models[:10]}..."
-                    )
-                else:
-                    logger.info(f"Embedding model {self.model} is available.")
-            except Exception as e:
-                logger.error(f"Failed to validate embedding model availability: {e}")
 
     @retry(
         stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10)

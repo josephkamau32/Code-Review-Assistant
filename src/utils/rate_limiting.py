@@ -61,7 +61,9 @@ def limit_requests():
 
 
 # Custom rate limit exceeded handler
-def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
+def rate_limit_exceeded_handler(
+    request: Request, exc: RateLimitExceeded
+) -> JSONResponse:
     """Handle rate limit exceeded errors"""
     return JSONResponse(
         status_code=429,

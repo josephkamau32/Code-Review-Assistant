@@ -205,7 +205,11 @@ class TestCORS:
 
     def test_cors_preflight_headers_present(self):
         """CORS preflight request should return appropriate access control headers"""
-        origin = settings.cors_origins[0] if settings.cors_origins else "http://localhost:3000"
+        origin = (
+            settings.cors_origins[0]
+            if settings.cors_origins
+            else "http://localhost:3000"
+        )
         response = client.options(
             "/api/v1/health",
             headers={
@@ -220,7 +224,11 @@ class TestCORS:
 
     def test_cors_headers_on_get_request(self):
         """GET request with Origin header should include CORS headers"""
-        origin = settings.cors_origins[0] if settings.cors_origins else "http://localhost:3000"
+        origin = (
+            settings.cors_origins[0]
+            if settings.cors_origins
+            else "http://localhost:3000"
+        )
         response = client.get("/api/v1/health", headers={"Origin": origin})
         assert response.status_code == 200
         headers_lower = {k.lower(): v for k, v in response.headers.items()}

@@ -2,6 +2,7 @@
 Pytest configuration and global fixtures.
 Sets safe dummy environment variables before any application module is imported.
 """
+
 import os
 
 # Safe dummy environment variables for hermetic testing - must be set BEFORE any src import
