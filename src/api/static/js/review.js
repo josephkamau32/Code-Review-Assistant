@@ -70,14 +70,18 @@ function displayResults(data) {
     const suggestionsList = document.getElementById('suggestions-list');
     const processingTime = document.getElementById('processing-time');
 
-    // Update processing time
+    // Update processing time safely
     processingTime.textContent = `${data.processing_time_seconds}s`;
 
-    // Update summary
-    summary.innerHTML = `<i class="fas fa-check-circle"></i> ${data.summary}`;
+    // Update summary safely with textContent (SEC-01)
+    summary.replaceChildren();
+    const summaryIcon = document.createElement('i');
+    summaryIcon.className = 'fas fa-check-circle me-1';
+    summary.appendChild(summaryIcon);
+    summary.appendChild(document.createTextNode(' ' + (data.summary || '')));
 
     // Clear and populate suggestions
-    suggestionsList.innerHTML = '';
+    suggestionsList.replaceChildren();
 
     if (data.suggestions && data.suggestions.length > 0) {
         data.suggestions.forEach((suggestion, index) => {
@@ -85,7 +89,13 @@ function displayResults(data) {
             suggestionsList.appendChild(suggestionCard);
         });
     } else {
-        suggestionsList.innerHTML = '<div class="alert alert-info"><i class="fas fa-info-circle"></i> No suggestions found - code looks good!</div>';
+        const noSuggestions = document.createElement('div');
+        noSuggestions.className = 'alert alert-info';
+        const infoIcon = document.createElement('i');
+        infoIcon.className = 'fas fa-info-circle me-1';
+        noSuggestions.appendChild(infoIcon);
+        noSuggestions.appendChild(document.createTextNode(' No suggestions found - code looks good!'));
+        suggestionsList.appendChild(noSuggestions);
     }
 
     // Show results
@@ -94,7 +104,10 @@ function displayResults(data) {
     resultsContent.classList.add('fade-in');
 
     // Scroll to results
-    resultsSection.scrollIntoView({ behavior: 'smooth' });
+    const resultsSection = document.getElementById('results-section');
+    if (resultsSection) {
+        resultsSection.scrollIntoView({ behavior: 'smooth' });
+    }
 }
 
 function createSuggestionCard(suggestion, number) {
@@ -107,7 +120,7 @@ function createSuggestionCard(suggestion, number) {
         'info': 'info'
     }[suggestion.severity] || 'secondary';
 
-    const categoryIcon = {
+    const categoryIconClass = {
         'style': 'fas fa-palette',
         'bug': 'fas fa-bug',
         'performance': 'fas fa-tachometer-alt',
@@ -115,21 +128,59 @@ function createSuggestionCard(suggestion, number) {
         'best_practice': 'fas fa-lightbulb'
     }[suggestion.category] || 'fas fa-code';
 
-    card.innerHTML = `
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <span class="badge bg-${severityClass}">${number}. ${suggestion.severity.toUpperCase()}</span>
-            <small class="text-muted">
-                <i class="${categoryIcon}"></i> ${suggestion.category.replace('_', ' ')}
-                ${suggestion.confidence ? ` • ${Math.round(suggestion.confidence * 100)}% confidence` : ''}
-            </small>
-        </div>
-        <div class="card-body">
-            <p class="card-text">${suggestion.suggestion}</p>
-            ${suggestion.line_number ? `<small class="text-muted">Line ${suggestion.line_number}</small>` : ''}
-            ${suggestion.file_path ? `<br><small class="text-muted"><i class="fas fa-file"></i> ${suggestion.file_path}</small>` : ''}
-        </div>
-    `;
+    // Header container
+    const header = document.createElement('div');
+    header.className = 'card-header d-flex justify-content-between align-items-center';
 
+    // Severity badge
+    const badge = document.createElement('span');
+    badge.className = `badge bg-${severityClass}`;
+    badge.textContent = `${number}. ${(suggestion.severity || '').toUpperCase()}`;
+    header.appendChild(badge);
+
+    // Metadata small tag
+    const meta = document.createElement('small');
+    meta.className = 'text-muted';
+    const categoryIcon = document.createElement('i');
+    categoryIcon.className = categoryIconClass;
+    meta.appendChild(categoryIcon);
+
+    const categoryText = ' ' + (suggestion.category ? suggestion.category.replace('_', ' ') : '');
+    const confidenceText = suggestion.confidence ? ` \u2022 ${Math.round(suggestion.confidence * 100)}% confidence` : '';
+    meta.appendChild(document.createTextNode(categoryText + confidenceText));
+    header.appendChild(meta);
+
+    // Card Body
+    const body = document.createElement('div');
+    body.className = 'card-body';
+
+    // Suggestion text (safe via textContent)
+    const p = document.createElement('p');
+    p.className = 'card-text';
+    p.textContent = suggestion.suggestion || '';
+    body.appendChild(p);
+
+    // Line number info (if present)
+    if (suggestion.line_number) {
+        const lineInfo = document.createElement('small');
+        lineInfo.className = 'text-muted d-block';
+        lineInfo.textContent = `Line ${suggestion.line_number}`;
+        body.appendChild(lineInfo);
+    }
+
+    // File path info (if present, safe via textContent)
+    if (suggestion.file_path) {
+        const fileInfo = document.createElement('small');
+        fileInfo.className = 'text-muted d-block';
+        const fileIcon = document.createElement('i');
+        fileIcon.className = 'fas fa-file me-1';
+        fileInfo.appendChild(fileIcon);
+        fileInfo.appendChild(document.createTextNode(suggestion.file_path));
+        body.appendChild(fileInfo);
+    }
+
+    card.appendChild(header);
+    card.appendChild(body);
     return card;
 }
 
@@ -140,9 +191,16 @@ function showError(message) {
     loadingSpinner.style.display = 'none';
     resultsContent.style.display = 'block';
 
-    document.getElementById('summary').innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${message}`;
-    document.getElementById('summary').className = 'alert alert-danger';
-    document.getElementById('suggestions-list').innerHTML = '';
+    const summary = document.getElementById('summary');
+    summary.replaceChildren();
+    const errorIcon = document.createElement('i');
+    errorIcon.className = 'fas fa-exclamation-triangle me-1';
+    summary.appendChild(errorIcon);
+    summary.appendChild(document.createTextNode(' ' + message));
+    summary.className = 'alert alert-danger';
+
+    const suggestionsList = document.getElementById('suggestions-list');
+    suggestionsList.replaceChildren();
 }
 
 function showToast(message, type = 'info') {
@@ -150,16 +208,26 @@ function showToast(message, type = 'info') {
     toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
     toastContainer.style.zIndex = '9999';
 
+    const bgClass = type === 'success' ? 'success' : type === 'warning' ? 'warning' : type === 'error' ? 'danger' : 'info';
     const toast = document.createElement('div');
-    toast.className = `toast align-items-center text-white bg-${type === 'success' ? 'success' : type === 'warning' ? 'warning' : type === 'error' ? 'danger' : 'info'} border-0`;
+    toast.className = `toast align-items-center text-white bg-${bgClass} border-0`;
     toast.setAttribute('role', 'alert');
 
-    toast.innerHTML = `
-        <div class="d-flex">
-            <div class="toast-body">${message}</div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-        </div>
-    `;
+    const flexDiv = document.createElement('div');
+    flexDiv.className = 'd-flex';
+
+    const toastBody = document.createElement('div');
+    toastBody.className = 'toast-body';
+    toastBody.textContent = message;
+
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'btn-close btn-close-white me-2 m-auto';
+    closeBtn.setAttribute('data-bs-dismiss', 'toast');
+
+    flexDiv.appendChild(toastBody);
+    flexDiv.appendChild(closeBtn);
+    toast.appendChild(flexDiv);
 
     toastContainer.appendChild(toast);
     document.body.appendChild(toastContainer);
@@ -168,6 +236,8 @@ function showToast(message, type = 'info') {
     bsToast.show();
 
     toast.addEventListener('hidden.bs.toast', () => {
-        document.body.removeChild(toastContainer);
+        if (toastContainer.parentNode) {
+            document.body.removeChild(toastContainer);
+        }
     });
 }

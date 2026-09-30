@@ -1,14 +1,14 @@
 from datetime import datetime
 from unittest.mock import MagicMock
 import httpx
-from openai import RateLimitError
+from openai import RateLimitError, APIError
 import pytest
 import tenacity
 from github import GithubException
 
 from src.models.schemas import CodeChange, CodeLanguage, HistoricalReview
 from src.rag.embeddings import EmbeddingService
-from src.rag.llm_service import LLMService
+from src.rag.llm_service import LLMService, LLMProviderError
 from src.utils.github_client import GitHubClient
 
 
@@ -100,13 +100,8 @@ def test_historical_review_model():
     assert review.comment_type == "suggestion"
 
 
-@pytest.mark.xfail(reason="BUG-05: retry logic broken, fix in Step 3")
 def test_llm_service_retry_on_rate_limit(monkeypatch):
-    """Test that transient RateLimitError triggers Tenacity retries on LLM chat completion (task 2c).
-
-    Currently fails because BUG-05 catches RateLimitError inside generate_review and
-    wraps it into LLMProviderError before Tenacity's retry decorator can catch and retry it.
-    """
+    """Test that transient RateLimitError triggers Tenacity retries on LLM chat completion (BUG-05)."""
     service = LLMService()
     monkeypatch.setattr(service.generate_review.retry, "wait", tenacity.wait_none())
 
@@ -134,10 +129,68 @@ def test_llm_service_retry_on_rate_limit(monkeypatch):
     monkeypatch.setattr(service.client.chat.completions, "create", mock_create)
 
     # Under working retries, call_count should be 2 and result returned.
-    # Under BUG-05, LLMProviderError is raised on attempt 1 without retry.
     result = service.generate_review(code_change, [])
     assert mock_create.call_count == 2
     assert result["summary"] == "Review complete"
+
+
+def test_llm_service_non_retryable_fails_fast(monkeypatch):
+    """Test that non-retryable APIError fails immediately without retrying and raises LLMProviderError."""
+    service = LLMService()
+    monkeypatch.setattr(service.generate_review.retry, "wait", tenacity.wait_none())
+
+    code_change = CodeChange(
+        file_path="src/main.py",
+        diff="+def test(): pass",
+        language=CodeLanguage.PYTHON,
+        added_lines=1,
+        removed_lines=0,
+    )
+
+    dummy_request = httpx.Request("POST", "https://api.openai.com/v1/chat/completions")
+    api_err = APIError(
+        message="Invalid API parameter", request=dummy_request, body=None
+    )
+
+    mock_create = MagicMock(side_effect=api_err)
+    monkeypatch.setattr(service.client.chat.completions, "create", mock_create)
+
+    with pytest.raises(LLMProviderError) as exc_info:
+        service.generate_review(code_change, [])
+
+    assert "OpenAI API failed" in str(exc_info.value)
+    assert mock_create.call_count == 1
+
+
+def test_llm_service_retry_exhaustion_raises_provider_error(monkeypatch):
+    """Test that exhausting all retries on RateLimitError raises LLMProviderError."""
+    service = LLMService()
+    monkeypatch.setattr(service.generate_review.retry, "wait", tenacity.wait_none())
+
+    code_change = CodeChange(
+        file_path="src/main.py",
+        diff="+def test(): pass",
+        language=CodeLanguage.PYTHON,
+        added_lines=1,
+        removed_lines=0,
+    )
+
+    dummy_response = httpx.Response(
+        status_code=429,
+        request=httpx.Request("POST", "https://api.openai.com/v1/chat/completions"),
+    )
+    rate_limit_err = RateLimitError(
+        message="Rate limit exceeded", response=dummy_response, body=None
+    )
+
+    mock_create = MagicMock(side_effect=rate_limit_err)
+    monkeypatch.setattr(service.client.chat.completions, "create", mock_create)
+
+    with pytest.raises(LLMProviderError) as exc_info:
+        service.generate_review(code_change, [])
+
+    assert "LLM API failed after retries" in str(exc_info.value)
+    assert mock_create.call_count == 3
 
 
 def test_github_client_api_error(monkeypatch):

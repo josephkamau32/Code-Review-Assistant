@@ -95,7 +95,7 @@ class TestAuthentication:
             "sub": "testuser",
             "exp": datetime.now(timezone.utc) - timedelta(hours=1),
         }
-        from jose import jwt
+        import jwt
 
         expired_token = jwt.encode(
             expired_data, settings.jwt_secret_key, algorithm=settings.jwt_algorithm
@@ -111,37 +111,145 @@ class TestAuthentication:
         assert response.status_code == 200
         assert response.json()["username"] == settings.admin_username
 
+    def test_manual_review_requires_auth(self):
+        """Manual review endpoint should reject unauthenticated requests with 401 (SEC-04)"""
+        response = client.post(
+            "/api/v1/review/manual",
+            json={"repo_name": "owner/repo", "pr_number": 1},
+        )
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Authentication required"
+
+    def test_manual_review_rejects_invalid_token(self):
+        """Manual review endpoint should reject invalid tokens with 401 (SEC-04)"""
+        response = client.post(
+            "/api/v1/review/manual",
+            json={"repo_name": "owner/repo", "pr_number": 1},
+            headers={"Authorization": "Bearer invalid_token_123"},
+        )
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Invalid authentication credentials"
+
+    def test_manual_review_requires_auth_even_when_auth_disabled(self, auth_disabled):
+        """Manual review endpoint must enforce authentication unconditionally, even when auth is disabled globally (SEC-04)"""
+        response = client.post(
+            "/api/v1/review/manual",
+            json={"repo_name": "owner/repo", "pr_number": 1},
+        )
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Authentication required"
+
+    def test_manual_review_allows_valid_token_when_auth_disabled(self, auth_disabled):
+        """Manual review endpoint allows valid tokens even when auth is disabled globally (SEC-04)"""
+        token = create_access_token(data={"sub": settings.admin_username})
+        headers = {"Authorization": f"Bearer {token}"}
+        response = client.post(
+            "/api/v1/review/manual",
+            json={"repo_name": "owner/repo", "pr_number": 1},
+            headers=headers,
+        )
+        # Authentication succeeds, so error is not 401
+        assert response.status_code != 401
+
+    def test_manual_review_with_valid_token_authenticated(self, monkeypatch):
+        """Manual review endpoint should allow authenticated users with valid token (SEC-04)"""
+        token = create_access_token(data={"sub": settings.admin_username})
+        headers = {"Authorization": f"Bearer {token}"}
+
+        import src.api.routes as routes
+        from unittest.mock import MagicMock
+        from datetime import datetime
+        from src.models.schemas import (
+            PullRequest,
+            CodeChange,
+            CodeLanguage,
+            ReviewResponse,
+        )
+
+        mock_gh = MagicMock()
+        mock_pr = PullRequest(
+            pr_number=1,
+            title="Test PR",
+            description="Testing",
+            author="testuser",
+            repository="owner/repo",
+            branch="main",
+            changes=[
+                CodeChange(
+                    file_path="src/main.py",
+                    diff="+test",
+                    language=CodeLanguage.PYTHON,
+                    added_lines=1,
+                    removed_lines=0,
+                )
+            ],
+            created_at=datetime.now(),
+        )
+        mock_gh.get_pr_changes.return_value = mock_pr
+        mock_gh.client = True
+        monkeypatch.setattr(routes, "github_client", mock_gh)
+
+        mock_rag = MagicMock()
+        mock_rag.review_pull_request.return_value = ReviewResponse(
+            pr_number=1,
+            repository="owner/repo",
+            suggestions=[],
+            summary="Review complete",
+            processing_time_seconds=0.5,
+        )
+        monkeypatch.setattr(routes, "rag_pipeline", mock_rag)
+
+        response = client.post(
+            "/api/v1/review/manual",
+            json={"repo_name": "owner/repo", "pr_number": 1},
+            headers=headers,
+        )
+        assert response.status_code == 200
+        assert response.json()["summary"] == "Review complete"
+        assert response.json()["pr_number"] == 1
+
 
 class TestInputValidation:
     """Test input validation and sanitization"""
 
-    def test_manual_review_invalid_repo_format(self):
+    @pytest.fixture
+    def auth_headers(self):
+        token = create_access_token(data={"sub": settings.admin_username})
+        return {"Authorization": f"Bearer {token}"}
+
+    def test_manual_review_invalid_repo_format(self, auth_headers):
         """Manual review should reject invalid repo format"""
         response = client.post(
             "/api/v1/review/manual",
-            json={"repo_name": "invalid_format", "pr_number": 123},  # Missing  slash
+            json={"repo_name": "invalid_format", "pr_number": 123},  # Missing slash
+            headers=auth_headers,
         )
         assert response.status_code == 422 or response.status_code == 400
 
-    def test_manual_review_negative_pr_number(self):
+    def test_manual_review_negative_pr_number(self, auth_headers):
         """Manual review should reject negative PR numbers"""
         response = client.post(
-            "/api/v1/review/manual", json={"repo_name": "owner/repo", "pr_number": -1}
+            "/api/v1/review/manual",
+            json={"repo_name": "owner/repo", "pr_number": -1},
+            headers=auth_headers,
         )
         assert response.status_code == 422
 
-    def test_manual_review_zero_pr_number(self):
+    def test_manual_review_zero_pr_number(self, auth_headers):
         """Manual review should reject zero PR number"""
         response = client.post(
-            "/api/v1/review/manual", json={"repo_name": "owner/repo", "pr_number": 0}
+            "/api/v1/review/manual",
+            json={"repo_name": "owner/repo", "pr_number": 0},
+            headers=auth_headers,
         )
         assert response.status_code == 422
 
-    def test_manual_review_oversized_repo_name(self):
+    def test_manual_review_oversized_repo_name(self, auth_headers):
         """Manual review should reject oversized repo names"""
         response = client.post(
             "/api/v1/review/manual",
             json={"repo_name": "a" * 200 + "/" + "b" * 200, "pr_number": 123},
+            headers=auth_headers,
         )
         assert response.status_code == 422
 
@@ -278,6 +386,31 @@ class TestDataSanitization:
         assert "openai_api_key" not in str(data).lower()
         assert "github_token" not in str(data).lower()
         assert "secret" not in str(data).lower()
+
+
+class TestDOMXSSPrevention:
+    """Test that static JavaScript does not use unsafe innerHTML for dynamic content (SEC-01)"""
+
+    def test_review_js_does_not_use_unsafe_inner_html_for_dynamic_data(self):
+        """Ensure review.js uses textContent or DOM creation rather than innerHTML interpolation for dynamic data."""
+        with open("src/api/static/js/review.js", "r", encoding="utf-8") as f:
+            js_content = f.read()
+
+        # Unsafe patterns that previously existed
+        assert (
+            'summary.innerHTML = `<i class="fas fa-check-circle"></i> ${data.summary}`'
+            not in js_content
+        )
+        assert "${suggestion.suggestion}" not in js_content
+        assert "${suggestion.file_path}" not in js_content
+
+        # Safe patterns that replace them
+        assert "p.textContent = suggestion.suggestion" in js_content
+        assert "summary.appendChild(document.createTextNode" in js_content
+        assert (
+            "fileInfo.appendChild(document.createTextNode(suggestion.file_path))"
+            in js_content
+        )
 
 
 if __name__ == "__main__":

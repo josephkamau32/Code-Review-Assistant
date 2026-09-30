@@ -61,6 +61,24 @@ class LLMResponseParseError(LLMServiceError):
     pass
 
 
+_retryable_list = [APIConnectionError, RateLimitError]
+if GEMINI_AVAILABLE and google_exceptions:
+    _retryable_list.extend(
+        [
+            google_exceptions.ResourceExhausted,
+            google_exceptions.ServiceUnavailable,
+        ]
+    )
+RETRYABLE_LLM_EXCEPTIONS = tuple(_retryable_list)
+
+
+def _handle_retry_failure(retry_state):
+    """Callback when all Tenacity retries are exhausted."""
+    exc = retry_state.outcome.exception()
+    logger.error(f"All retries exhausted for review generation: {exc}")
+    raise LLMProviderError(f"LLM API failed after retries: {exc}") from exc
+
+
 class LLMService:
     def __init__(self):
         self.provider = settings.llm_provider.lower()
@@ -173,9 +191,8 @@ Provide your response as valid JSON only, no additional text."""
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=4, max=10),
-        retry=retry_if_exception_type(
-            (APIConnectionError, RateLimitError) if OPENAI_AVAILABLE else Exception
-        ),
+        retry=retry_if_exception_type(RETRYABLE_LLM_EXCEPTIONS),
+        retry_error_callback=_handle_retry_failure,
     )
     def generate_review(
         self,
@@ -229,7 +246,11 @@ Provide your response as valid JSON only, no additional text."""
 
             return result
 
-        except (APIError, RateLimitError, APIConnectionError) as e:
+        except RETRYABLE_LLM_EXCEPTIONS:
+            # Allow retryable errors to bubble to Tenacity for retry
+            raise
+
+        except APIError as e:
             logger.error(
                 f"OpenAI API error for {code_change.file_path}: {type(e).__name__} - {str(e)}"
             )

@@ -6,7 +6,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jose import JWTError, jwt
+import jwt
+from jwt.exceptions import PyJWTError
 from passlib.context import CryptContext
 from pydantic import BaseModel
 from src.config.settings import settings
@@ -64,7 +65,7 @@ def verify_token(token: str) -> Optional[TokenData]:
         if username is None:
             return None
         return TokenData(username=username)
-    except JWTError:
+    except PyJWTError:
         return None
 
 
@@ -78,14 +79,10 @@ def authenticate_user(username: str, password: str) -> Optional[User]:
     return None
 
 
-async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+def _authenticate_credentials(
+    credentials: Optional[HTTPAuthorizationCredentials],
 ) -> User:
-    """Get current authenticated user"""
-    if not settings.enable_authentication:
-        # Return default admin user when auth is disabled
-        return User(username=settings.admin_username)
-
+    """Validate credentials and return authenticated user, or raise HTTPException."""
     if not credentials:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -101,10 +98,11 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Token is valid, return the user (password already verified during login)
-    # Check if user still exists and is valid
     if token_data.username == settings.admin_username:
-        return User(username=token_data.username)
+        user = User(username=token_data.username)
+        if user.disabled:
+            raise HTTPException(status_code=400, detail="Inactive user")
+        return user
 
     # For future user database implementation
     raise HTTPException(
@@ -113,13 +111,35 @@ async def get_current_user(
     )
 
 
+async def get_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+) -> User:
+    """Get current authenticated user (respects global enable_authentication)."""
+    if not settings.enable_authentication:
+        # Return default admin user when auth is disabled
+        return User(username=settings.admin_username)
+
+    return _authenticate_credentials(credentials)
+
+
 async def get_current_active_user(
     current_user: User = Depends(get_current_user),
 ) -> User:
-    """Get current active user"""
+    """Get current active user (respects global enable_authentication)."""
     if current_user.disabled:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
+
+
+async def require_strict_token(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+) -> User:
+    """Enforce valid authentication unconditionally, ignoring enable_authentication.
+
+    Used for sensitive endpoints (e.g. manual reviews triggering LLM spend)
+    to prevent denial-of-wallet vectors even if auth is disabled globally.
+    """
+    return _authenticate_credentials(credentials)
 
 
 # Optional authentication for public endpoints
