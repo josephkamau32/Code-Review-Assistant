@@ -47,6 +47,7 @@ logs/*.log
 *.sqlite3
 data/cache/
 data/vector_db/
+data/test_vector_db/
 data/processed/
 data/raw/
 

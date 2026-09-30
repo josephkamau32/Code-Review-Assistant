@@ -26,7 +26,21 @@ os.environ.setdefault(
     "$2b$12$vCIXi9XBkX8dMyw2zYQCou4nh7dHOdoOC2XvQMl6kuGCoQFqVsIsm",
 )
 
+os.environ.setdefault("CHROMA_PERSIST_DIRECTORY", "data/test_vector_db")
+
 import pytest  # noqa: E402
+
+
+@pytest.fixture(scope="session", autouse=True)
+def cleanup_test_vector_db():
+    """Ensure tests run against a clean isolated ChromaDB directory and tear it down after."""
+    import shutil
+
+    if os.path.exists("data/test_vector_db"):
+        shutil.rmtree("data/test_vector_db", ignore_errors=True)
+    yield
+    if os.path.exists("data/test_vector_db"):
+        shutil.rmtree("data/test_vector_db", ignore_errors=True)
 
 
 @pytest.fixture
@@ -35,3 +49,19 @@ def auth_disabled(monkeypatch):
     from src.config.settings import settings
 
     monkeypatch.setattr(settings, "enable_authentication", False)
+
+
+def pytest_collection_modifyitems(config, items):
+    """Exclude integration and e2e tests by default unless explicitly requested via -m (task 2f)."""
+    if config.getoption("-m"):
+        return
+
+    selected = []
+    deselected = []
+    for item in items:
+        if "integration" in item.keywords or "e2e" in item.keywords:
+            deselected.append(item)
+        else:
+            selected.append(item)
+    config.hook.pytest_deselected(items=deselected)
+    items[:] = selected

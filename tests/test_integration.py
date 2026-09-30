@@ -1,3 +1,4 @@
+from unittest.mock import MagicMock
 import pytest
 from src.rag.pipeline import RAGPipeline
 from src.models.schemas import HistoricalReview, PullRequest, CodeChange, CodeLanguage
@@ -58,17 +59,47 @@ def sample_pr():
     )
 
 
-def test_full_pipeline(sample_reviews, sample_pr):
-    """Test complete RAG pipeline"""
+@pytest.mark.integration
+def test_full_pipeline(sample_reviews, sample_pr, monkeypatch):
+    """Test complete RAG pipeline with boundary mocks (task 2c, 2f)"""
     pipeline = RAGPipeline()
 
-    # Ingest historical reviews
+    # Mock embedding creation at the client boundary
+    def fake_embed(model, input):
+        count = len(input) if isinstance(input, list) else 1
+        return MagicMock(
+            data=[MagicMock(embedding=[0.05] * 1536) for _ in range(count)]
+        )
+
+    mock_emb_create = MagicMock(side_effect=fake_embed)
+    monkeypatch.setattr(
+        pipeline.embedding_service.client.embeddings, "create", mock_emb_create
+    )
+
+    # Mock chat completion at the client boundary
+    mock_choice = MagicMock()
+    mock_choice.message.content = (
+        '{"suggestions": [{"line_number": 1, "suggestion": "Ensure proper null checks", '
+        '"severity": "warning", "category": "best_practice", "confidence": 0.9}], '
+        '"summary": "Validation review complete"}'
+    )
+    mock_chat_create = MagicMock(return_value=MagicMock(choices=[mock_choice]))
+    monkeypatch.setattr(
+        pipeline.llm_service.client.chat.completions, "create", mock_chat_create
+    )
+
+    # Ingest historical reviews into real ChromaDB vector store
     pipeline.ingest_historical_reviews(sample_reviews)
 
-    # Review new PR
+    # Review new PR using real vector store retrieval and prompt assembly
     response = pipeline.review_pull_request(sample_pr)
 
     assert response.pr_number == 100
     assert response.repository == "test/repo"
-    assert isinstance(response.suggestions, list)
+    assert len(response.suggestions) == 1
+    assert response.suggestions[0].suggestion == "Ensure proper null checks"
+    assert response.suggestions[0].category == "best_practice"
+    assert "Found 1 warning" in response.summary
     assert response.processing_time_seconds > 0
+    assert mock_emb_create.called
+    assert mock_chat_create.called

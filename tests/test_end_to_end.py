@@ -16,59 +16,16 @@ from src.rag.pipeline import RAGPipeline
 from src.utils.github_client import GitHubClient
 
 
-def test_full_workflow(monkeypatch):
-    """Test complete workflow from ingestion to review hermetically (TEST-02)"""
+@pytest.mark.e2e
+def test_full_workflow():
+    """Test complete workflow from ingestion to review against live GitHub (task 2f)"""
     # Skip test if GitHub token not configured or placeholder
-    if not settings.github_token or settings.github_token == "your_github_token_here":
-        pytest.skip("GitHub token not configured - skipping integration test")
-
-    sample_reviews = [
-        HistoricalReview(
-            pr_number=14999,
-            repository="django/django",
-            file_path="django/core/handlers/base.py",
-            code_snippet="def load_middleware(self):\n    pass",
-            review_comment="Ensure middleware exception handling is preserved.",
-            reviewer="django_reviewer",
-            comment_type="suggestion",
-            language=CodeLanguage.PYTHON,
-            created_at=datetime.now(),
-            was_resolved=True,
-        )
-    ]
-    sample_pr = PullRequest(
-        pr_number=15000,
-        title="Refactor middleware handling",
-        description="Clean up middleware loading logic",
-        author="contributor",
-        repository="django/django",
-        branch="feature/middleware",
-        changes=[
-            CodeChange(
-                file_path="django/core/handlers/base.py",
-                diff="+def load_middleware(self):\n+    self._middleware_chain = handler",
-                language=CodeLanguage.PYTHON,
-                added_lines=2,
-                removed_lines=0,
-            )
-        ],
-        created_at=datetime.now(),
-    )
-
     if (
-        settings.github_token.startswith("ghp_dummy")
-        or settings.environment == "testing"
+        not settings.github_token
+        or settings.github_token == "your_github_token_here"
+        or settings.github_token.startswith("ghp_dummy")
     ):
-        monkeypatch.setattr(
-            GitHubClient,
-            "fetch_historical_reviews",
-            lambda self, repo, max_prs=100: sample_reviews,
-        )
-        monkeypatch.setattr(
-            GitHubClient,
-            "get_pr_changes",
-            lambda self, repo, pr_num: sample_pr,
-        )
+        pytest.skip("Live GitHub token not configured - skipping e2e test")
 
     # 1. Ingest sample data
     github_client = GitHubClient()
