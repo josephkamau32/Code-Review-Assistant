@@ -42,6 +42,30 @@ cp .env.example .env
 uvicorn src.api.app:app --reload --host 0.0.0.0 --port 8000
 ```
 
+## Running Tests
+
+All unit tests are hermetic: they run completely offline without external network calls, external service dependencies, or real API keys.
+
+```bash
+# Activate virtual environment
+# Windows:
+.venv\Scripts\activate
+# Linux/macOS:
+source .venv/bin/activate
+
+# Run hermetic test suite (default - safe for CI without secrets):
+pytest
+
+# Run hermetic tests with coverage report:
+pytest --cov=src --cov-report=term-missing
+
+# Run integration tests (tests vector DB, pipeline integration, and schemas):
+pytest -m integration
+
+# Run end-to-end tests (requires live external services and credentials):
+pytest -m e2e
+```
+
 ## Contributing
 
 We welcome contributions! Please refer to the guidelines in our issues and discussions. Follow PEP 8 and ensure tests pass (`pytest --cov`).
