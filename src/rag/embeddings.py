@@ -38,15 +38,8 @@ class EmbeddingService:
             )
 
         api_key = settings.gemini_api_key
-        if (
-            not api_key
-            or api_key == "your_gemini_api_key_here"
-            or api_key.startswith("dummy-")
-            or settings.environment == "testing"
-        ):
-            logger.warning(
-                "Using mock embedding service - no Gemini API key provided or test environment active"
-            )
+        if not api_key or api_key == "your_gemini_api_key_here":
+            logger.warning("Using mock embedding service - no Gemini API key provided")
             self.mock_mode = True
             self.model = settings.gemini_embedding_model
         else:
@@ -63,15 +56,8 @@ class EmbeddingService:
             raise ImportError("openai not installed. Install with: pip install openai")
 
         api_key = settings.openai_api_key
-        if (
-            not api_key
-            or api_key == "your_openai_api_key_here"
-            or api_key.startswith("sk-test-")
-            or settings.environment == "testing"
-        ):
-            logger.warning(
-                "Using mock embedding service - no OpenAI API key provided or test environment active"
-            )
+        if api_key == "your_openai_api_key_here" or not api_key:
+            logger.warning("Using mock embedding service - no OpenAI API key provided")
             self.mock_mode = True
             self.model = settings.embedding_model
         else:
