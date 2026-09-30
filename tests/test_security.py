@@ -280,5 +280,30 @@ class TestDataSanitization:
         assert "secret" not in str(data).lower()
 
 
+class TestDOMXSSPrevention:
+    """Test that static JavaScript does not use unsafe innerHTML for dynamic content (SEC-01)"""
+
+    def test_review_js_does_not_use_unsafe_inner_html_for_dynamic_data(self):
+        """Ensure review.js uses textContent or DOM creation rather than innerHTML interpolation for dynamic data."""
+        with open("src/api/static/js/review.js", "r", encoding="utf-8") as f:
+            js_content = f.read()
+
+        # Unsafe patterns that previously existed
+        assert (
+            'summary.innerHTML = `<i class="fas fa-check-circle"></i> ${data.summary}`'
+            not in js_content
+        )
+        assert "${suggestion.suggestion}" not in js_content
+        assert "${suggestion.file_path}" not in js_content
+
+        # Safe patterns that replace them
+        assert "p.textContent = suggestion.suggestion" in js_content
+        assert "summary.appendChild(document.createTextNode" in js_content
+        assert (
+            "fileInfo.appendChild(document.createTextNode(suggestion.file_path))"
+            in js_content
+        )
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
