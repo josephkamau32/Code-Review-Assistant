@@ -6,7 +6,7 @@ from loguru import logger
 from src.models.schemas import ReviewResponse, FeedbackRequest, ManualReviewRequest
 from src.rag.pipeline import RAGPipeline
 from src.utils.github_client import GitHubClient
-from src.utils.auth import get_current_active_user, User
+from src.utils.auth import get_current_active_user, require_strict_token, User
 from src.utils.rate_limiting import limit_requests
 from src.config.settings import settings
 import hmac
@@ -154,7 +154,7 @@ async def process_pr_review(repo_name: str, pr_number: int):
 @router.post("/review/manual", response_model=ReviewResponse)
 async def manual_review(
     request: ManualReviewRequest,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_strict_token),
 ):
     """
     Manually trigger a code review for a specific PR

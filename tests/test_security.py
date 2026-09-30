@@ -130,13 +130,25 @@ class TestAuthentication:
         assert response.status_code == 401
         assert response.json()["detail"] == "Invalid authentication credentials"
 
-    def test_manual_review_allows_when_auth_disabled(self, auth_disabled):
-        """When authentication is disabled, manual review should bypass auth gate (SEC-04)"""
+    def test_manual_review_requires_auth_even_when_auth_disabled(self, auth_disabled):
+        """Manual review endpoint must enforce authentication unconditionally, even when auth is disabled globally (SEC-04)"""
         response = client.post(
             "/api/v1/review/manual",
-            json={"repo_name": "invalid_repo", "pr_number": 1},
+            json={"repo_name": "owner/repo", "pr_number": 1},
         )
-        # Should not be 401 Unauthorized; reaches validation/processing
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Authentication required"
+
+    def test_manual_review_allows_valid_token_when_auth_disabled(self, auth_disabled):
+        """Manual review endpoint allows valid tokens even when auth is disabled globally (SEC-04)"""
+        token = create_access_token(data={"sub": settings.admin_username})
+        headers = {"Authorization": f"Bearer {token}"}
+        response = client.post(
+            "/api/v1/review/manual",
+            json={"repo_name": "owner/repo", "pr_number": 1},
+            headers=headers,
+        )
+        # Authentication succeeds, so error is not 401
         assert response.status_code != 401
 
     def test_manual_review_with_valid_token_authenticated(self, monkeypatch):
