@@ -26,6 +26,11 @@ os.environ.setdefault(
     "$2b$12$vCIXi9XBkX8dMyw2zYQCou4nh7dHOdoOC2XvQMl6kuGCoQFqVsIsm",
 )
 
+# Force providers to OpenAI for existing tests that mock OpenAI at the boundary.
+# Production default is now "gemini" but test fixtures assume OpenAI client objects.
+os.environ.setdefault("LLM_PROVIDER", "openai")
+os.environ.setdefault("EMBEDDING_PROVIDER", "openai")
+
 # Always force isolated ChromaDB test directory regardless of ambient environment
 os.environ["CHROMA_PERSIST_DIRECTORY"] = "data/test_vector_db"
 

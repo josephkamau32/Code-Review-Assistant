@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List
 from loguru import logger
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -11,7 +11,8 @@ except ImportError:
     OPENAI_AVAILABLE = False
 
 try:
-    import google.generativeai as genai
+    from google import genai
+    from google.genai import types as genai_types
 
     GEMINI_AVAILABLE = True
 except ImportError:
@@ -22,7 +23,8 @@ from src.config.settings import settings
 
 class EmbeddingService:
     def __init__(self):
-        self.provider = settings.llm_provider.lower()
+        self.provider = settings.embedding_provider.lower()
+        self.dimensions = settings.embedding_dimensions
 
         if self.provider == "gemini":
             self._init_gemini()
@@ -34,7 +36,7 @@ class EmbeddingService:
     def _init_gemini(self):
         if not GEMINI_AVAILABLE:
             raise ImportError(
-                "google-generativeai not installed. Install with: pip install google-generativeai"
+                "google-genai not installed. Install with: pip install google-genai"
             )
 
         api_key = settings.gemini_api_key
@@ -43,8 +45,7 @@ class EmbeddingService:
             self.mock_mode = True
             self.model = settings.gemini_embedding_model
         else:
-            genai.configure(api_key=api_key)
-            self.client = genai  # Use the module directly for embeddings
+            self.client = genai.Client(api_key=api_key)
             self.mock_mode = False
             self.model = settings.gemini_embedding_model
             logger.info(
@@ -81,9 +82,7 @@ class EmbeddingService:
             # Generate deterministic mock embedding based on text hash
             hash_obj = hashlib.md5(text.encode())
             np.random.seed(int(hash_obj.hexdigest()[:8], 16))
-            embedding = np.random.normal(
-                0, 1, 1536
-            ).tolist()  # OpenAI embedding dimension
+            embedding = np.random.normal(0, 1, self.dimensions).tolist()
             logger.debug(f"DEBUG: Generated mock embedding, length: {len(embedding)}")
             return embedding
 
@@ -110,11 +109,16 @@ class EmbeddingService:
             f"DEBUG: Starting Gemini embedding generation for text length: {len(text)}"
         )
 
-        result = genai.embed_content(
-            model=self.model, content=text, task_type="retrieval_document"
+        response = self.client.models.embed_content(
+            model=self.model,
+            contents=text,
+            config=genai_types.EmbedContentConfig(
+                task_type="RETRIEVAL_DOCUMENT",
+                output_dimensionality=self.dimensions,
+            ),
         )
 
-        embedding = result["embedding"]
+        embedding = response.embeddings[0].values
         logger.debug(f"DEBUG: Generated Gemini embedding, length: {len(embedding)}")
         return embedding
 
@@ -132,7 +136,7 @@ class EmbeddingService:
             for text in texts:
                 hash_obj = hashlib.md5(text.encode())
                 np.random.seed(int(hash_obj.hexdigest()[:8], 16))
-                embedding = np.random.normal(0, 1, 1536).tolist()
+                embedding = np.random.normal(0, 1, self.dimensions).tolist()
                 all_embeddings.append(embedding)
             logger.debug(f"Generated {len(all_embeddings)} mock embeddings")
             return all_embeddings
@@ -163,19 +167,22 @@ class EmbeddingService:
     def _embed_batch_gemini(self, texts: List[str]) -> List[List[float]]:
         all_embeddings = []
 
-        # Gemini has limits on batch size too, process in chunks
+        # Gemini supports batch embedding via list of contents
         batch_size = 100
         for i in range(0, len(texts), batch_size):
             batch = texts[i : i + batch_size]
 
-            # For Gemini, we need to make individual calls for each text
-            # as it doesn't support batch embedding directly like OpenAI
-            for text in batch:
-                result = genai.embed_content(
-                    model=self.model, content=text, task_type="retrieval_document"
-                )
-                embedding = result["embedding"]
-                all_embeddings.append(embedding)
+            response = self.client.models.embed_content(
+                model=self.model,
+                contents=batch,
+                config=genai_types.EmbedContentConfig(
+                    task_type="RETRIEVAL_DOCUMENT",
+                    output_dimensionality=self.dimensions,
+                ),
+            )
+
+            for emb in response.embeddings:
+                all_embeddings.append(emb.values)
 
             logger.debug(f"Generated Gemini embeddings for batch {i//batch_size + 1}")
 

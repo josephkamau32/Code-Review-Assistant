@@ -1,11 +1,11 @@
 # Web Framework & Server
-fastapi==0.109.2
-uvicorn[standard]==0.27.1
+fastapi>=0.109.2
+uvicorn[standard]>=0.27.1
 python-multipart>=0.0.31
 
 # Settings & Configuration
-pydantic==2.6.1
-pydantic-settings==2.1.0
+pydantic>=2.12.5
+pydantic-settings>=2.1.0
 python-dotenv==1.2.2
 
 # Security & Authentication
@@ -16,12 +16,15 @@ slowapi==0.1.9
 
 # Vector DB & Embeddings
 chromadb==0.4.22
-openai==1.12.0
-google-generativeai==0.3.2
+openai>=1.12.0
+google-genai>=2.25.0
 numpy==1.26.4
 
 # GitHub Integration
 PyGithub==2.2.0
+
+# Diff Parsing (LLM-04: line number validation)
+unidiff>=1.0.0
 
 # Resilience & Rate Limiting
 tenacity==8.2.3
@@ -33,4 +36,4 @@ prometheus-client==0.19.0
 psutil==5.9.8
 
 # HTTP Client
-httpx==0.26.0
+httpx>=0.28.0
