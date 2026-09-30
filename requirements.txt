@@ -9,7 +9,7 @@ pydantic-settings==2.1.0
 python-dotenv==1.0.1
 
 # Security & Authentication
-python-jose[cryptography]==3.3.0
+PyJWT==2.15.0
 passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
 slowapi==0.1.9

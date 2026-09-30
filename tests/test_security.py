@@ -95,7 +95,7 @@ class TestAuthentication:
             "sub": "testuser",
             "exp": datetime.now(timezone.utc) - timedelta(hours=1),
         }
-        from jose import jwt
+        import jwt
 
         expired_token = jwt.encode(
             expired_data, settings.jwt_secret_key, algorithm=settings.jwt_algorithm

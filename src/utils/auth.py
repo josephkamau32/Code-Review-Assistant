@@ -6,7 +6,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jose import JWTError, jwt
+import jwt
+from jwt.exceptions import PyJWTError
 from passlib.context import CryptContext
 from pydantic import BaseModel
 from src.config.settings import settings
@@ -64,7 +65,7 @@ def verify_token(token: str) -> Optional[TokenData]:
         if username is None:
             return None
         return TokenData(username=username)
-    except JWTError:
+    except (PyJWTError, Exception):
         return None
 
 
