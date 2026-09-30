@@ -1,4 +1,3 @@
-```bash
 #!/bin/bash
 
 echo "Setting up Code Review Assistant..."
@@ -24,4 +23,3 @@ echo "Next steps:"
 echo "1. Update .env with your API keys"
 echo "2. Run: python scripts/ingest_reviews.py --repo owner/repo"
 echo "3. Start API: uvicorn src.api.app:app --reload"
-```

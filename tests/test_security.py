@@ -22,13 +22,30 @@ class TestAuthentication:
         assert response.status_code == 200
         assert response.json()["status"] == "healthy"
 
+    def test_login_with_valid_credentials(self, monkeypatch):
+        """Login should succeed with valid credentials and return access token"""
+        test_password = "securePassword123"
+        monkeypatch.setattr(settings, "admin_username", "admin")
+        monkeypatch.setattr(
+            settings, "admin_password_hash", get_password_hash(test_password)
+        )
+        response = client.post(
+            "/api/v1/auth/login",
+            json={"username": "admin", "password": test_password},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "access_token" in data
+        assert data["token_type"] == "bearer"
+
     def test_login_with_invalid_credentials(self):
         """Login should fail with invalid credentials"""
         if not settings.enable_authentication:
             pytest.skip("Authentication disabled")
 
         response = client.post(
-            "/api/v1/auth/login", json={"username": "invalid", "password": "wrong"}
+            "/api/v1/auth/login",
+            json={"username": "invalid_user", "password": "wrongpassword123"},
         )
         assert response.status_code == 401
 
@@ -88,6 +105,12 @@ class TestAuthentication:
         response = client.get("/api/v1/auth/me", headers=headers)
         assert response.status_code == 401
 
+    def test_protected_endpoint_allows_when_auth_disabled(self, auth_disabled):
+        """When authentication is disabled, endpoints should allow access with default admin"""
+        response = client.get("/api/v1/auth/me")
+        assert response.status_code == 200
+        assert response.json()["username"] == settings.admin_username
+
 
 class TestInputValidation:
     """Test input validation and sanitization"""
@@ -133,19 +156,26 @@ class TestRateLimiting:
 
         # Make many rapid requests
         responses = []
-        for _ in range(15):  # More than the typical limit
-            response = client.post(
-                "/api/v1/webhook/github",
-                json={"action": "test"},
-                headers={"X-Hub-Signature-256": "test"},
-            )
-            responses.append(response.status_code)
-            time.sleep(0.1)  # Small delay
+        try:
+            for _ in range(15):  # More than the typical limit
+                response = client.post(
+                    "/api/v1/webhook/github",
+                    json={"action": "test"},
+                    headers={"X-Hub-Signature-256": "test"},
+                )
+                responses.append(response.status_code)
+                time.sleep(0.05)
 
-        # At least one should be rate limited
-        assert (
-            429 in responses or 401 in responses
-        )  # 429 = Too Many Requests, 401 = Invalid signature
+            # At least one should be rate limited
+            assert (
+                429 in responses or 401 in responses
+            )  # 429 = Too Many Requests, 401 = Invalid signature
+        finally:
+            from src.api.routes import limiter as routes_limiter
+
+            routes_limiter.reset()
+            if hasattr(app.state, "limiter"):
+                app.state.limiter.reset()
 
 
 class TestWebhookSecurity:
@@ -173,15 +203,37 @@ class TestWebhookSecurity:
 class TestCORS:
     """Test CORS configuration"""
 
-    def test_cors_headers_present(self):
-        """CORS headers should be present in responses"""
-        response = client.options("/api/v1/health")
-        # Check for CORS headers
-        assert (
-            "access-control-allow-origin"
-            in [h.lower() for h in response.headers.keys()]
-            or response.status_code == 200
-        )  # FastAPI may handle this differently
+    def test_cors_preflight_headers_present(self):
+        """CORS preflight request should return appropriate access control headers"""
+        origin = (
+            settings.cors_origins[0]
+            if settings.cors_origins
+            else "http://localhost:3000"
+        )
+        response = client.options(
+            "/api/v1/health",
+            headers={
+                "Origin": origin,
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+        assert response.status_code == 200
+        headers_lower = {k.lower(): v for k, v in response.headers.items()}
+        assert "access-control-allow-origin" in headers_lower
+        assert headers_lower["access-control-allow-origin"] == origin
+
+    def test_cors_headers_on_get_request(self):
+        """GET request with Origin header should include CORS headers"""
+        origin = (
+            settings.cors_origins[0]
+            if settings.cors_origins
+            else "http://localhost:3000"
+        )
+        response = client.get("/api/v1/health", headers={"Origin": origin})
+        assert response.status_code == 200
+        headers_lower = {k.lower(): v for k, v in response.headers.items()}
+        assert "access-control-allow-origin" in headers_lower
+        assert headers_lower["access-control-allow-origin"] == origin
 
 
 class TestErrorHandling:

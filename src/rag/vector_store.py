@@ -9,11 +9,9 @@ import json
 
 class VectorStoreManager:
     def __init__(self):
-        self.client = chromadb.Client(
-            ChromaSettings(
-                persist_directory=settings.chroma_persist_directory,
-                anonymized_telemetry=False,
-            )
+        self.client = chromadb.PersistentClient(
+            path=settings.chroma_persist_directory,
+            settings=ChromaSettings(anonymized_telemetry=False),
         )
         self.collection = self._get_or_create_collection()
 

@@ -1,5 +1,5 @@
-from pydantic_settings import BaseSettings
-from pydantic import validator, field_validator, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator, model_validator, ValidationInfo
 from typing import Optional, List
 import secrets
 import os
@@ -76,7 +76,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     @model_validator(mode="after")
-    def validate_api_keys(self):
+    def validate_api_keys(self) -> "Settings":
         """Validate that required API keys are set based on provider"""
         if self.llm_provider == "openai":
             if not self.openai_api_key:
@@ -95,22 +95,25 @@ class Settings(BaseSettings):
 
         return self
 
-    @validator("secret_key", "jwt_secret_key", pre=True, always=True)
-    def warn_default_secrets(cls, v, field):
+    @field_validator("secret_key", "jwt_secret_key", mode="before")
+    @classmethod
+    def warn_default_secrets(cls, v: Optional[str], info: ValidationInfo) -> str:
         """Warn if using default/random secrets in production"""
         if os.getenv("ENVIRONMENT") == "production" and (not v or len(v) < 32):
             import warnings
 
             warnings.warn(
-                f"{field.name} is using a default or weak value. "
+                f"{info.field_name} is using a default or weak value. "
                 "Please set a strong secret in production!",
                 UserWarning,
             )
         return v or secrets.token_urlsafe(32)
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=False,
+        extra="ignore",
+    )
 
 
 settings = Settings()

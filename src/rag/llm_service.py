@@ -104,18 +104,6 @@ class LLMService:
             self.mock_mode = False
             self.model = settings.llm_model
             logger.info(f"Initialized OpenAI LLM service with model: {self.model}")
-            # Add logging to validate model availability
-            try:
-                models = self.client.models.list()
-                available_models = [m.id for m in models.data]
-                if self.model not in available_models:
-                    logger.warning(
-                        f"Model {self.model} not found in available OpenAI models. Available: {available_models[:10]}..."
-                    )
-                else:
-                    logger.info(f"Model {self.model} is available.")
-            except Exception as e:
-                logger.error(f"Failed to validate model availability: {e}")
 
     def _build_review_prompt(
         self,

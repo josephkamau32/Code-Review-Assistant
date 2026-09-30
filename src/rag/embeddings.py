@@ -67,18 +67,6 @@ class EmbeddingService:
             logger.info(
                 f"Initialized OpenAI embedding service with model: {self.model}"
             )
-            # Add logging to validate model availability
-            try:
-                models = self.client.models.list()
-                available_models = [m.id for m in models.data]
-                if self.model not in available_models:
-                    logger.warning(
-                        f"Embedding model {self.model} not found in available OpenAI models. Available: {available_models[:10]}..."
-                    )
-                else:
-                    logger.info(f"Embedding model {self.model} is available.")
-            except Exception as e:
-                logger.error(f"Failed to validate embedding model availability: {e}")
 
     @retry(
         stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10)
