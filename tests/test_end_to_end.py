@@ -57,13 +57,21 @@ def test_api_health():
     assert response.json()["status"] == "healthy"
 
 
-def test_webhook_signature_validation():
-    """Test webhook signature validation using TestClient (TEST-03)"""
+def test_webhook_signature_validation(monkeypatch):
+    """Test webhook signature validation using TestClient with mocked GitHub boundary (TEST-03)"""
     if (
         not settings.github_webhook_secret
         or settings.github_webhook_secret == "your_webhook_secret_here"
     ):
         pytest.skip("GitHub webhook secret not configured - skipping webhook test")
+
+    from unittest.mock import MagicMock
+    import src.api.routes as routes
+
+    # Mock GitHubClient boundary to ensure hermetic execution and prevent outbound network calls
+    mock_github_client = MagicMock()
+    mock_github_client.get_pr_changes.return_value = None
+    monkeypatch.setattr(routes, "github_client", mock_github_client)
 
     client = TestClient(app)
     payload = b'{"action": "opened", "pull_request": {"number": 1}, "repository": {"full_name": "test/repo"}}'
@@ -86,6 +94,7 @@ def test_webhook_signature_validation():
 
     assert response.status_code == 200
     assert response.json()["status"] == "accepted"
+    mock_github_client.get_pr_changes.assert_called_once_with("test/repo", 1)
 
 
 if __name__ == "__main__":
