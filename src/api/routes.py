@@ -152,7 +152,10 @@ async def process_pr_review(repo_name: str, pr_number: int):
 
 
 @router.post("/review/manual", response_model=ReviewResponse)
-async def manual_review(request: ManualReviewRequest):
+async def manual_review(
+    request: ManualReviewRequest,
+    current_user: User = Depends(get_current_active_user),
+):
     """
     Manually trigger a code review for a specific PR
     Useful for testing and on-demand reviews
