@@ -1,12 +1,12 @@
 # Web Framework & Server
 fastapi==0.109.2
 uvicorn[standard]==0.27.1
-python-multipart==0.0.9
+python-multipart>=0.0.31
 
 # Settings & Configuration
 pydantic==2.6.1
 pydantic-settings==2.1.0
-python-dotenv==1.0.1
+python-dotenv==1.2.2
 
 # Security & Authentication
 PyJWT==2.15.0
