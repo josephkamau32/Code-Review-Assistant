@@ -26,7 +26,8 @@ os.environ.setdefault(
     "$2b$12$vCIXi9XBkX8dMyw2zYQCou4nh7dHOdoOC2XvQMl6kuGCoQFqVsIsm",
 )
 
-os.environ.setdefault("CHROMA_PERSIST_DIRECTORY", "data/test_vector_db")
+# Always force isolated ChromaDB test directory regardless of ambient environment
+os.environ["CHROMA_PERSIST_DIRECTORY"] = "data/test_vector_db"
 
 import pytest  # noqa: E402
 
