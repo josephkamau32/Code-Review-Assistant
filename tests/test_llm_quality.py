@@ -41,7 +41,9 @@ class TestSettingsDefaults:
     def test_default_gemini_llm_model(self):
         from src.config.settings import Settings
 
-        assert Settings.model_fields["gemini_llm_model"].default == "gemini-3.5-flash"
+        assert (
+            Settings.model_fields["gemini_llm_model"].default == "gemini-3.5-flash-lite"
+        )
 
     def test_default_gemini_embedding_model(self):
         from src.config.settings import Settings

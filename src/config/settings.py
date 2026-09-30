@@ -25,8 +25,10 @@ class Settings(BaseSettings):
     llm_model: str = "gpt-4-turbo-preview"
 
     # Model Settings — Gemini
+    # NOTE: Gemini model version strings change every few months.
+    # Re-verify available models at: https://ai.google.dev/gemini-api/docs/models
     gemini_embedding_model: str = "gemini-embedding-001"
-    gemini_llm_model: str = "gemini-3.5-flash"
+    gemini_llm_model: str = "gemini-3.5-flash-lite"
 
     # Embedding dimensions (must match the model output)
     embedding_dimensions: int = 768
