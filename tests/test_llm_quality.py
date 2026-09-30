@@ -13,7 +13,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from src.models.schemas import CodeChange, CodeLanguage
-from src.rag.llm_service import LLMService, LLMReviewResponse
+from src.rag.llm_service import LLMService, LLMReviewResponse, LLMResponseParseError
 from src.rag.pipeline import extract_valid_lines, snap_to_nearest
 
 
@@ -149,8 +149,8 @@ class TestLLMResponseValidation:
             LLMReviewResponse.model_validate(raw)
 
     def test_partial_recovery_drops_invalid_suggestions(self):
-        """The service's _validate_llm_response should keep valid suggestions
-        and drop invalid ones rather than failing entirely."""
+        """When the top-level structure is valid (has 'suggestions' list) but
+        individual suggestions are malformed, keep valid ones and drop bad ones."""
         service = LLMService()
         raw = {
             "suggestions": [
@@ -172,6 +172,19 @@ class TestLLMResponseValidation:
         result = service._validate_llm_response(raw)
         assert len(result["suggestions"]) == 1
         assert result["suggestions"][0]["suggestion"] == "Good suggestion"
+
+    def test_completely_broken_response_raises_parse_error(self):
+        """A response with completely wrong structure (no 'suggestions' key)
+        must raise LLMResponseParseError, not silently return empty results."""
+        service = LLMService()
+        with pytest.raises(LLMResponseParseError):
+            service._validate_llm_response({"foo": "bar"})
+
+    def test_completely_broken_response_no_list_raises(self):
+        """A response where 'suggestions' is not a list must raise."""
+        service = LLMService()
+        with pytest.raises(LLMResponseParseError):
+            service._validate_llm_response({"suggestions": "not a list"})
 
 
 # ═══════════════════════════════════════════════════════════════════════════

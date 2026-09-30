@@ -220,15 +220,31 @@ Provide your response as valid JSON only, no additional text."""
         )
 
     def _validate_llm_response(self, raw: Dict[str, Any]) -> Dict[str, Any]:
-        """Validate and normalize LLM response against Pydantic schema (LLM-03)."""
+        """Validate and normalize LLM response against Pydantic schema (LLM-03).
+
+        Raises LLMResponseParseError if the top-level structure is wrong
+        (e.g. missing 'suggestions' key entirely). Individual malformed
+        suggestions within a valid structure are dropped with a warning.
+        """
+        # Pre-check: reject responses that have none of the expected keys
+        if "suggestions" not in raw and "summary" not in raw:
+            raise LLMResponseParseError(
+                f"LLM response missing required structure. Keys found: {list(raw.keys())}"
+            )
+        # Ensure suggestions is a list if present
+        if "suggestions" in raw and not isinstance(raw["suggestions"], list):
+            raise LLMResponseParseError(
+                f"'suggestions' must be a list, got {type(raw['suggestions']).__name__}"
+            )
         try:
             validated = LLMReviewResponse.model_validate(raw)
             return validated.model_dump()
         except ValidationError as e:
+            # Pre-checks passed, so structure is valid but individual suggestions
+            # are malformed. Attempt partial recovery: keep valid, drop invalid.
             logger.warning(
-                f"LLM response failed schema validation, attempting partial recovery: {e}"
+                f"LLM response has invalid suggestions, attempting partial recovery: {e}"
             )
-            # Attempt partial recovery: keep valid suggestions, drop invalid ones
             suggestions = []
             for s in raw.get("suggestions", []):
                 try:
