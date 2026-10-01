@@ -13,19 +13,32 @@ class Settings(BaseSettings):
     github_webhook_secret: Optional[str] = None
 
     # Provider Selection
-    llm_provider: str = "openai"  # "openai" or "gemini"
+    llm_provider: str = "gemini"  # "openai" or "gemini"
+    embedding_provider: str = "gemini"  # "openai" or "gemini"
 
     # Database
     chroma_persist_directory: str = "./data/vector_db"
     chroma_collection_name: str = "code_reviews"
 
-    # Model Settings
+    # Model Settings — OpenAI
     embedding_model: str = "text-embedding-3-small"
-    gemini_embedding_model: str = "models/embedding-001"
     llm_model: str = "gpt-4-turbo-preview"
-    gemini_llm_model: str = "gemini-1.5-flash"
+
+    # Model Settings — Gemini
+    # NOTE: Gemini model version strings change every few months.
+    # Re-verify available models at: https://ai.google.dev/gemini-api/docs/models
+    gemini_embedding_model: str = "gemini-embedding-001"
+    gemini_llm_model: str = "gemini-3.5-flash-lite"
+
+    # Embedding dimensions (must match the model output)
+    embedding_dimensions: int = 768
+
+    # LLM generation
     temperature: float = 0.3
-    max_tokens: int = 1000
+    max_tokens: int = 4096
+
+    # NOT YET ENFORCED - reserved for client-side rate limiting, see Step 5
+    llm_requests_per_minute: int = 15
 
     # Retrieval
     top_k_results: int = 5

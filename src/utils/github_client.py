@@ -259,7 +259,11 @@ class GitHubClient:
     def post_review_comment(
         self, repo_name: str, pr_number: int, suggestions: List[Dict[str, Any]]
     ) -> bool:
-        """Post review suggestions as PR comments"""
+        """Post review suggestions as inline PR review comments (BUG-07).
+
+        Uses GitHub's Pull Request Review API to attach comments to specific
+        diff lines. Falls back to a single issue comment if the review fails.
+        """
         if not self.client:
             logger.warning("GitHub client not initialized - cannot post review comment")
             return False
@@ -279,17 +283,75 @@ class GitHubClient:
             repo = self.client.get_repo(repo_name)
             pr = repo.get_pull(pr_number)
 
-            # Format suggestions into a comment body
-            comment_body = "## 🤖 AI Code Review\n\n"
+            # Get the latest commit SHA for the review
+            commits = pr.get_commits()
+            latest_commit = commits[commits.totalCount - 1]
 
+            # Build review comments for suggestions that have file_path and line_number
+            review_comments = []
+            fallback_suggestions = []
+
+            for suggestion in suggestions:
+                file_path = suggestion.get("file_path")
+                line_number = suggestion.get("line_number")
+                body = (
+                    f"**{suggestion['category'].title()}** "
+                    f"({suggestion['severity'].upper()})\n\n"
+                    f"{suggestion['suggestion']}"
+                )
+
+                if file_path and line_number:
+                    review_comments.append(
+                        {
+                            "path": file_path,
+                            "line": int(line_number),
+                            "body": body,
+                        }
+                    )
+                else:
+                    fallback_suggestions.append(body)
+
+            # Build overall summary
+            summary = "## 🤖 AI Code Review\n\n"
+            if review_comments:
+                summary += f"Posted {len(review_comments)} inline comment(s)."
+            if fallback_suggestions:
+                summary += "\n\n### File-level comments:\n\n"
+                for idx, fb in enumerate(fallback_suggestions, 1):
+                    summary += f"{idx}. {fb}\n\n"
+
+            if review_comments:
+                try:
+                    pr.create_review(
+                        commit=latest_commit,
+                        body=summary,
+                        comments=review_comments,
+                        event="COMMENT",
+                    )
+                    logger.info(
+                        f"Posted review with {len(review_comments)} inline comments to PR #{pr_number}"
+                    )
+                    return True
+                except GithubException as review_err:
+                    logger.warning(
+                        f"create_review failed ({review_err}), falling back to issue comment"
+                    )
+                    # Fall through to issue comment fallback
+
+            # Fallback: post as a single issue comment
+            comment_body = "## 🤖 AI Code Review\n\n"
             for idx, suggestion in enumerate(suggestions, 1):
                 comment_body += f"### {idx}. {suggestion['category'].title()}\n"
                 comment_body += f"**Severity:** {suggestion['severity'].upper()}\n"
+                if suggestion.get("file_path"):
+                    comment_body += f"**File:** `{suggestion['file_path']}`"
+                    if suggestion.get("line_number"):
+                        comment_body += f" (line {suggestion['line_number']})"
+                    comment_body += "\n"
                 comment_body += f"{suggestion['suggestion']}\n\n"
 
-            # Post as a review comment
             pr.create_issue_comment(comment_body)
-            logger.info(f"Posted review comment to PR #{pr_number}")
+            logger.info(f"Posted fallback issue comment to PR #{pr_number}")
             return True
 
         except GithubException as e:

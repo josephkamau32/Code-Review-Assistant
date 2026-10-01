@@ -1,3 +1,5 @@
+import re
+
 import chromadb
 from chromadb.config import Settings as ChromaSettings
 from typing import List, Dict, Any, Optional
@@ -7,29 +9,49 @@ from src.models.schemas import HistoricalReview
 import json
 
 
+def _namespaced_collection_name() -> str:
+    """Build a collection name that includes the embedding model to prevent
+    dimension-mismatch crashes when switching providers (LLM-07).
+
+    ChromaDB collection names must be 3-63 chars, start/end with alphanumeric,
+    and contain only alphanumerics, underscores, or hyphens.
+    """
+    provider = settings.embedding_provider.lower()
+    if provider == "gemini":
+        model_tag = settings.gemini_embedding_model
+    else:
+        model_tag = settings.embedding_model
+
+    # Sanitize: replace non-alphanumeric with underscore, collapse multiples
+    model_tag = re.sub(r"[^a-zA-Z0-9]", "_", model_tag).strip("_")
+    model_tag = re.sub(r"_+", "_", model_tag)
+
+    name = f"{settings.chroma_collection_name}_{model_tag}"
+    # Enforce ChromaDB length limits
+    name = name[:63]
+    return name
+
+
 class VectorStoreManager:
     def __init__(self):
         self.client = chromadb.PersistentClient(
             path=settings.chroma_persist_directory,
             settings=ChromaSettings(anonymized_telemetry=False),
         )
+        self._collection_name = _namespaced_collection_name()
         self.collection = self._get_or_create_collection()
 
     def _get_or_create_collection(self):
         """Get existing collection or create new one"""
         try:
-            collection = self.client.get_collection(
-                name=settings.chroma_collection_name
-            )
-            logger.info(
-                f"Loaded existing collection: {settings.chroma_collection_name}"
-            )
+            collection = self.client.get_collection(name=self._collection_name)
+            logger.info(f"Loaded existing collection: {self._collection_name}")
         except Exception:
             collection = self.client.create_collection(
-                name=settings.chroma_collection_name,
+                name=self._collection_name,
                 metadata={"description": "Historical code reviews for RAG"},
             )
-            logger.info(f"Created new collection: {settings.chroma_collection_name}")
+            logger.info(f"Created new collection: {self._collection_name}")
         return collection
 
     def add_review(self, review: HistoricalReview, embedding: List[float]) -> str:
@@ -144,10 +166,10 @@ class VectorStoreManager:
         count = self.collection.count()
         return {
             "total_reviews": count,
-            "collection_name": settings.chroma_collection_name,
+            "collection_name": self._collection_name,
         }
 
     def delete_collection(self):
         """Delete the entire collection (use with caution!)"""
-        self.client.delete_collection(name=settings.chroma_collection_name)
-        logger.warning(f"Deleted collection: {settings.chroma_collection_name}")
+        self.client.delete_collection(name=self._collection_name)
+        logger.warning(f"Deleted collection: {self._collection_name}")

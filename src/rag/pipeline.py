@@ -1,5 +1,6 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Set, Optional
 from loguru import logger
+from unidiff import PatchSet
 from src.rag.embeddings import EmbeddingService
 from src.rag.vector_store import VectorStoreManager
 from src.rag.llm_service import LLMService
@@ -12,6 +13,36 @@ from src.models.schemas import (
 )
 from src.config.settings import settings
 import time
+
+
+def extract_valid_lines(diff: str, file_path: str) -> Set[int]:
+    """Extract the set of valid target (new-side) line numbers from a unified diff.
+
+    Uses `unidiff` to parse the diff hunk headers and identify lines that were
+    added or left unchanged in the target file. Suggestions referencing line
+    numbers outside this set are hallucinated by the LLM (LLM-04).
+    """
+    valid: Set[int] = set()
+    try:
+        # unidiff expects a full patch; wrap single-file diff with header
+        patch_text = f"--- a/{file_path}\n+++ b/{file_path}\n{diff}"
+        patch = PatchSet(patch_text)
+        for patched_file in patch:
+            for hunk in patched_file:
+                for line in hunk:
+                    # target lines include added (+) and context (space) lines
+                    if line.target_line_no is not None:
+                        valid.add(line.target_line_no)
+    except Exception as e:
+        logger.debug(f"Could not parse diff for {file_path}: {e}")
+    return valid
+
+
+def snap_to_nearest(line: int, valid_lines: Set[int]) -> Optional[int]:
+    """Return the closest valid line number, or None if the set is empty."""
+    if not valid_lines:
+        return None
+    return min(valid_lines, key=lambda v: abs(v - line))
 
 
 class RAGPipeline:
@@ -185,11 +216,33 @@ class RAGPipeline:
                 style_guide_context=style_guide,
             )
 
-            # Step 4: Parse suggestions
+            # Step 4: Parse suggestions with line-number validation (LLM-04)
+            valid_lines = extract_valid_lines(code_change.diff, code_change.file_path)
             for suggestion_data in review_result.get("suggestions", []):
+                raw_line = suggestion_data.get("line_number")
+                validated_line = None
+                if raw_line is not None:
+                    try:
+                        raw_line = int(raw_line)
+                    except (TypeError, ValueError):
+                        raw_line = None
+
+                if raw_line is not None and valid_lines:
+                    if raw_line in valid_lines:
+                        validated_line = raw_line
+                    else:
+                        validated_line = snap_to_nearest(raw_line, valid_lines)
+                        logger.debug(
+                            f"LLM suggested line {raw_line} not in diff; "
+                            f"snapped to {validated_line}"
+                        )
+                elif raw_line is not None:
+                    # Could not parse diff; trust LLM as fallback
+                    validated_line = raw_line
+
                 suggestion = ReviewSuggestion(
                     file_path=code_change.file_path,
-                    line_number=suggestion_data.get("line_number"),
+                    line_number=validated_line,
                     suggestion=suggestion_data["suggestion"],
                     severity=suggestion_data["severity"],
                     category=suggestion_data["category"],
