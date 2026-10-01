@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     temperature: float = 0.3
     max_tokens: int = 4096
 
-    # Rate limiting — configurable requests-per-minute (RPM) for LLM calls
+    # NOT YET ENFORCED - reserved for client-side rate limiting, see Step 5
     llm_requests_per_minute: int = 15
 
     # Retrieval
