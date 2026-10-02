@@ -1,0 +1,116 @@
+"""Tests for CodeRabbit review follow-up fixes (PR #4).
+
+Each test class corresponds to one of the 6 CodeRabbit comments.
+"""
+
+import pytest
+from unittest.mock import MagicMock
+from pydantic import ValidationError
+from src.config.settings import Settings
+
+
+# -- Fix 1: Settings validation covers embedding_provider independently ------
+
+
+class TestEmbeddingProviderKeyValidation:
+    """CodeRabbit: settings.py - validate embedding_provider key independently."""
+
+    def test_openai_llm_missing_gemini_embed_key_raises_outside_testing(
+        self, monkeypatch
+    ):
+        """LLM_PROVIDER=openai + real OPENAI key + EMBEDDING_PROVIDER=gemini + no GEMINI key
+        + ENVIRONMENT != testing -> must raise."""
+        monkeypatch.delenv("ENVIRONMENT", raising=False)
+        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+        monkeypatch.delenv("EMBEDDING_PROVIDER", raising=False)
+        monkeypatch.delenv("LLM_PROVIDER", raising=False)
+
+        with pytest.raises((ValidationError, ValueError)) as exc_info:
+            Settings(
+                openai_api_key="sk-test-dummy-key-for-test-32charslong",
+                gemini_api_key=None,
+                llm_provider="openai",
+                embedding_provider="gemini",
+                _env_file=None,
+            )
+        assert "GEMINI_API_KEY" in str(exc_info.value)
+
+    def test_default_gemini_embedding_missing_key_raises_outside_testing(
+        self, monkeypatch
+    ):
+        """When embedding_provider is omitted (defaults to 'gemini') and llm_provider='openai',
+        missing GEMINI_API_KEY outside testing must raise (the exact default-config case CodeRabbit flagged).
+        """
+        monkeypatch.delenv("ENVIRONMENT", raising=False)
+        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+        monkeypatch.delenv("EMBEDDING_PROVIDER", raising=False)
+        monkeypatch.delenv("LLM_PROVIDER", raising=False)
+
+        with pytest.raises((ValidationError, ValueError)) as exc_info:
+            Settings(
+                openai_api_key="sk-test-dummy-key-for-test-32charslong",
+                gemini_api_key=None,
+                llm_provider="openai",
+                _env_file=None,
+            )
+        assert "GEMINI_API_KEY" in str(exc_info.value)
+
+    def test_full_default_config_missing_gemini_key_raises_outside_testing(
+        self, monkeypatch
+    ):
+        """When both llm_provider and embedding_provider take their production defaults ('gemini'),
+        missing GEMINI_API_KEY outside testing must raise."""
+        monkeypatch.delenv("ENVIRONMENT", raising=False)
+        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+        monkeypatch.delenv("EMBEDDING_PROVIDER", raising=False)
+        monkeypatch.delenv("LLM_PROVIDER", raising=False)
+
+        with pytest.raises((ValidationError, ValueError)) as exc_info:
+            Settings(
+                gemini_api_key=None,
+                _env_file=None,
+            )
+        assert "GEMINI_API_KEY" in str(exc_info.value)
+
+    def test_same_config_with_environment_testing_does_not_raise(self, monkeypatch):
+        """Same config but ENVIRONMENT=testing -> settings loads without error."""
+        monkeypatch.setenv("ENVIRONMENT", "testing")
+
+        s = Settings(
+            openai_api_key="sk-test-dummy-key-for-test-32charslong",
+            gemini_api_key=None,
+            llm_provider="openai",
+            embedding_provider="gemini",
+            _env_file=None,
+        )
+        assert s.embedding_provider == "gemini"
+
+    def test_invalid_embedding_provider_raises_at_load_time(self, monkeypatch):
+        """embedding_provider must be 'openai' or 'gemini' - reject others at load."""
+        monkeypatch.setenv("ENVIRONMENT", "testing")
+
+        with pytest.raises((ValidationError, ValueError)) as exc_info:
+            Settings(
+                openai_api_key="sk-test-dummy-key-for-test-32charslong",
+                llm_provider="openai",
+                embedding_provider="huggingface",
+                _env_file=None,
+            )
+        assert (
+            "embedding_provider" in str(exc_info.value).lower()
+            or "huggingface" in str(exc_info.value).lower()
+        )
+
+    def test_existing_settings_test_still_passes(self, monkeypatch):
+        """Existing test: openai provider with openai key loads fine."""
+        monkeypatch.setenv("ENVIRONMENT", "testing")
+
+        s = Settings(
+            openai_api_key="sk-test-dummy-key-for-test-32charslong",
+            llm_provider="openai",
+            embedding_provider="openai",
+            _env_file=None,
+        )
+        assert s.llm_provider == "openai"
+
+

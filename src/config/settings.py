@@ -90,21 +90,42 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_api_keys(self) -> "Settings":
-        """Validate that required API keys are set based on provider"""
-        if self.llm_provider == "openai":
-            if not self.openai_api_key:
-                raise ValueError(
-                    "OPENAI_API_KEY must be set when using OpenAI provider"
-                )
-        elif self.llm_provider == "gemini":
-            if not self.gemini_api_key:
-                raise ValueError(
-                    "GEMINI_API_KEY must be set when using Gemini provider"
-                )
-        else:
+        """Validate that required API keys are set based on provider.
+
+        Checks BOTH llm_provider and embedding_provider independently.
+        In test/dev context (ENVIRONMENT=testing), missing embedding keys are allowed
+        so that existing tests configured only with LLM keys do not fail.
+        """
+        _VALID_PROVIDERS = ("openai", "gemini")
+        is_testing = os.getenv("ENVIRONMENT") == "testing"
+
+        # Validate provider names first
+        if self.llm_provider not in _VALID_PROVIDERS:
             raise ValueError(
                 f"Invalid LLM provider: {self.llm_provider}. Must be 'openai' or 'gemini'"
             )
+        if self.embedding_provider not in _VALID_PROVIDERS:
+            raise ValueError(
+                f"Invalid embedding_provider: {self.embedding_provider}. "
+                f"Must be one of {_VALID_PROVIDERS}"
+            )
+
+        # Validate LLM provider key
+        if self.llm_provider == "openai" and not self.openai_api_key:
+            raise ValueError("OPENAI_API_KEY must be set when using OpenAI provider")
+        if self.llm_provider == "gemini" and not self.gemini_api_key:
+            raise ValueError("GEMINI_API_KEY must be set when using Gemini provider")
+
+        # Validate embedding provider key independently (outside testing)
+        if not is_testing:
+            if self.embedding_provider == "openai" and not self.openai_api_key:
+                raise ValueError(
+                    "OPENAI_API_KEY must be set when using OpenAI as embedding_provider"
+                )
+            if self.embedding_provider == "gemini" and not self.gemini_api_key:
+                raise ValueError(
+                    "GEMINI_API_KEY must be set when using Gemini as embedding_provider"
+                )
 
         return self
 
