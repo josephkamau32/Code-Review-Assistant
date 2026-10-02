@@ -305,6 +305,7 @@ class GitHubClient:
                         {
                             "path": file_path,
                             "line": int(line_number),
+                            "side": "RIGHT",
                             "body": body,
                         }
                     )

@@ -26,9 +26,21 @@ def _namespaced_collection_name() -> str:
     model_tag = re.sub(r"[^a-zA-Z0-9]", "_", model_tag).strip("_")
     model_tag = re.sub(r"_+", "_", model_tag)
 
-    name = f"{settings.chroma_collection_name}_{model_tag}"
-    # Enforce ChromaDB length limits
-    name = name[:63]
+    # Include dimension suffix so changing embedding_dimensions produces a
+    # different collection, preventing incompatible-vector ingestion (CR-02).
+    dim_suffix = f"_{settings.embedding_dimensions}d"
+
+    prefix = f"{settings.chroma_collection_name}_"
+    if len(prefix) + len(dim_suffix) > 63:
+        raise ValueError(
+            "chroma_collection_name is too long to safely include a dimension suffix - shorten it"
+        )
+
+    # Reserve space for prefix + dim_suffix; truncate model_tag if needed
+    max_model_len = 63 - len(prefix) - len(dim_suffix)
+    model_tag = model_tag[:max_model_len]
+
+    name = f"{prefix}{model_tag}{dim_suffix}"
     return name
 
 

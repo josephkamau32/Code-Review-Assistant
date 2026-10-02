@@ -72,8 +72,17 @@ class EmbeddingService:
     @retry(
         stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10)
     )
-    def embed_text(self, text: str) -> List[float]:
-        """Generate embedding for a single text"""
+    def embed_text(
+        self, text: str, task_type: str = "RETRIEVAL_DOCUMENT"
+    ) -> List[float]:
+        """Generate embedding for a single text.
+
+        Args:
+            text: The text to embed.
+            task_type: Gemini task type hint. Use "RETRIEVAL_DOCUMENT" for
+                ingested content (default) and "RETRIEVAL_QUERY" for search
+                queries (CR-04).
+        """
         if self.mock_mode:
             # Return a mock embedding for testing
             import hashlib
@@ -88,7 +97,7 @@ class EmbeddingService:
 
         try:
             if self.provider == "gemini":
-                return self._embed_text_gemini(text)
+                return self._embed_text_gemini(text, task_type=task_type)
             else:  # openai
                 return self._embed_text_openai(text)
         except Exception as e:
@@ -104,16 +113,18 @@ class EmbeddingService:
         logger.debug(f"DEBUG: Generated OpenAI embedding, length: {len(embedding)}")
         return embedding
 
-    def _embed_text_gemini(self, text: str) -> List[float]:
+    def _embed_text_gemini(
+        self, text: str, task_type: str = "RETRIEVAL_DOCUMENT"
+    ) -> List[float]:
         logger.debug(
-            f"DEBUG: Starting Gemini embedding generation for text length: {len(text)}"
+            f"DEBUG: Starting Gemini embedding generation for text length: {len(text)}, task_type: {task_type}"
         )
 
         response = self.client.models.embed_content(
             model=self.model,
             contents=text,
             config=genai_types.EmbedContentConfig(
-                task_type="RETRIEVAL_DOCUMENT",
+                task_type=task_type,
                 output_dimensionality=self.dimensions,
             ),
         )
@@ -189,9 +200,13 @@ class EmbeddingService:
         return all_embeddings
 
     def embed_code_change(self, code_snippet: str, context: str = "") -> List[float]:
-        """Generate embedding specifically for code changes with context"""
+        """Generate embedding specifically for code changes with context.
+
+        Uses RETRIEVAL_QUERY task type since this is the search/query path,
+        not the ingestion path (CR-04).
+        """
         # Combine code and context for better semantic representation
         full_text = (
             f"Context: {context}\n\nCode:\n{code_snippet}" if context else code_snippet
         )
-        return self.embed_text(full_text)
+        return self.embed_text(full_text, task_type="RETRIEVAL_QUERY")

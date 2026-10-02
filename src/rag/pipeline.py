@@ -38,11 +38,28 @@ def extract_valid_lines(diff: str, file_path: str) -> Set[int]:
     return valid
 
 
-def snap_to_nearest(line: int, valid_lines: Set[int]) -> Optional[int]:
-    """Return the closest valid line number, or None if the set is empty."""
+# Default max snap distance: 20 lines.
+# Rationale: typical diff hunks have 3 lines of context on each side (6 total)
+# plus the changed lines. A 20-line tolerance covers most realistic cases where
+# the LLM is slightly off, while preventing a suggestion for line 500 from
+# snapping to an unrelated line 10 in a small diff.
+MAX_SNAP_DISTANCE: int = 20
+
+
+def snap_to_nearest(
+    line: int, valid_lines: Set[int], max_snap_distance: int = MAX_SNAP_DISTANCE
+) -> Optional[int]:
+    """Return the closest valid line number, or None if too far or set is empty.
+
+    If the nearest valid line is farther than *max_snap_distance*, return None
+    (file-level fallback) instead of snapping to unrelated code (CR-05).
+    """
     if not valid_lines:
         return None
-    return min(valid_lines, key=lambda v: abs(v - line))
+    nearest = min(valid_lines, key=lambda v: abs(v - line))
+    if abs(nearest - line) > max_snap_distance:
+        return None
+    return nearest
 
 
 class RAGPipeline:

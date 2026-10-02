@@ -42,6 +42,9 @@ cp .env.example .env
 uvicorn src.api.app:app --reload --host 0.0.0.0 --port 8000
 ```
 
+> [!NOTE]
+> **Vector Store Collections & Re-Ingestion:** ChromaDB collections are namespaced by embedding model and vector dimension (e.g. `code_reviews_gemini_embedding_001_768d`) to ensure embedding compatibility. Changing `EMBEDDING_PROVIDER`, embedding models, or `EMBEDDING_DIMENSIONS` creates a new distinct collection and requires re-ingesting historical reviews.
+
 ## Running Tests
 
 All unit tests are hermetic: they run completely offline without external network calls, external service dependencies, or real API keys.

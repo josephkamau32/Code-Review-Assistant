@@ -440,11 +440,19 @@ Provide your response as valid JSON only, no additional text."""
                 and genai_errors
                 and isinstance(e, genai_errors.APIError)
             ):
-                if getattr(e, "code", None) == 429:
-                    logger.error(f"Gemini rate limit error: {str(e)}")
+                error_code = getattr(e, "code", None)
+                if error_code == 429 or (
+                    isinstance(error_code, int) and error_code >= 500
+                ):
+                    # Retryable: 429 rate-limit and 5xx server errors.
+                    # Re-raise so Tenacity can retry them (CR-03).
+                    logger.warning(
+                        f"Gemini retryable error (code={error_code}): {str(e)}"
+                    )
                     raise
                 else:
-                    logger.error(f"Gemini API error: {str(e)}")
+                    # Non-retryable client errors (4xx other than 429)
+                    logger.error(f"Gemini API error (code={error_code}): {str(e)}")
                     raise LLMProviderError(f"Gemini API failed: {str(e)}") from e
             else:
                 logger.error(f"Unexpected Gemini error: {type(e).__name__} - {str(e)}")
