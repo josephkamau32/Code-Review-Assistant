@@ -322,3 +322,55 @@ class TestSnapMaxDistance:
         assert snap_to_nearest(40, valid, max_snap_distance=5) is None
 
 
+# -- Fix 6: Inline comments include "side": "RIGHT" -------------------------
+
+
+class TestCommentSideRight:
+    """CodeRabbit: github_client.py - inline comments must include 'side': 'RIGHT'."""
+
+    def test_review_comment_dict_includes_side_right(self, monkeypatch):
+        """Each inline review comment dict must include 'side': 'RIGHT'."""
+        from src.utils.github_client import GitHubClient
+
+        client = GitHubClient()
+        mock_gh = MagicMock()
+        mock_gh.get_rate_limit.return_value.core.remaining = 5000
+
+        mock_repo = MagicMock()
+        mock_pr = MagicMock()
+
+        # Set up commits mock
+        mock_commits = MagicMock()
+        mock_commits.totalCount = 1
+        mock_commits.__getitem__ = MagicMock(return_value=MagicMock())
+        mock_pr.get_commits.return_value = mock_commits
+
+        # Capture what gets passed to create_review
+        mock_pr.create_review = MagicMock()
+
+        mock_repo.get_pull.return_value = mock_pr
+        mock_gh.get_repo.return_value = mock_repo
+        monkeypatch.setattr(client, "client", mock_gh)
+
+        suggestions = [
+            {
+                "file_path": "src/main.py",
+                "line_number": 42,
+                "suggestion": "Add error handling",
+                "severity": "warning",
+                "category": "best_practice",
+            }
+        ]
+
+        client.post_review_comment("owner/repo", 1, suggestions)
+
+        # Verify create_review was called and comments include "side": "RIGHT"
+        mock_pr.create_review.assert_called_once()
+        call_kwargs = mock_pr.create_review.call_args
+        comments = call_kwargs.kwargs.get("comments") or call_kwargs[1].get(
+            "comments", []
+        )
+        assert len(comments) == 1
+        assert comments[0]["side"] == "RIGHT"
+        assert comments[0]["path"] == "src/main.py"
+        assert comments[0]["line"] == 42
