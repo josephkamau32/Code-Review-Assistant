@@ -289,3 +289,36 @@ class TestEmbeddingTaskType:
         assert config_arg.task_type == "RETRIEVAL_DOCUMENT"
 
 
+# -- Fix 5: snap_to_nearest has max distance ---------------------------------
+
+
+class TestSnapMaxDistance:
+    """CodeRabbit: pipeline.py - unbounded snapping can misattribute comments."""
+
+    def test_close_line_snaps_normally(self):
+        """A hallucinated line close to valid lines should snap."""
+        from src.rag.pipeline import snap_to_nearest
+
+        valid = {10, 11, 12, 13, 14}
+        result = snap_to_nearest(15, valid)
+        assert result == 14
+
+    def test_far_line_falls_back_to_none(self):
+        """A hallucinated line far outside the diff range falls back to None (file-level)."""
+        from src.rag.pipeline import snap_to_nearest
+
+        valid = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+        result = snap_to_nearest(500, valid)
+        assert result is None
+
+    def test_custom_max_distance(self):
+        """Verify custom max_snap_distance is respected."""
+        from src.rag.pipeline import snap_to_nearest
+
+        valid = {10, 20, 30}
+        # Within custom distance of 5
+        assert snap_to_nearest(12, valid, max_snap_distance=5) == 10
+        # Outside custom distance of 5
+        assert snap_to_nearest(40, valid, max_snap_distance=5) is None
+
+

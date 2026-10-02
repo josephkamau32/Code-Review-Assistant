@@ -230,12 +230,19 @@ class TestDiffLineValidation:
         assert snap_to_nearest(5, set()) is None
 
     def test_hallucinated_line_gets_snapped(self):
-        """Integration: LLM suggests line 99 which doesn't exist in a small diff."""
+        """Integration: LLM suggests line 7 which is close to the diff range."""
+        valid = extract_valid_lines(self.SAMPLE_DIFF, "src/main.py")
+        assert 7 not in valid
+        snapped = snap_to_nearest(7, valid)
+        assert snapped is not None
+        assert snapped in valid
+
+    def test_distant_hallucinated_line_falls_back_to_file_level(self):
+        """Integration: LLM suggests line 99 far from diff lines 1-5; snap returns None (CR-05)."""
         valid = extract_valid_lines(self.SAMPLE_DIFF, "src/main.py")
         assert 99 not in valid
         snapped = snap_to_nearest(99, valid)
-        assert snapped is not None
-        assert snapped in valid
+        assert snapped is None  # file-level fallback, not misattributed
 
 
 # ═══════════════════════════════════════════════════════════════════════════
