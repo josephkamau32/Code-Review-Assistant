@@ -156,6 +156,21 @@ class TestCollectionNameIncludesDimensions:
         assert len(name) <= 63
         assert "3072d" in name
 
+    def test_overly_long_chroma_collection_name_raises(self, monkeypatch):
+        """Excessively long chroma_collection_name leaving insufficient room for dimension suffix must raise."""
+        from src.config.settings import settings
+        from src.rag.vector_store import _namespaced_collection_name
+
+        monkeypatch.setattr(settings, "embedding_dimensions", 768)
+        # 60 chars + "_" (1) + "_768d" (5) = 66 > 63
+        monkeypatch.setattr(settings, "chroma_collection_name", "a" * 60)
+
+        with pytest.raises(
+            ValueError,
+            match="chroma_collection_name is too long to safely include a dimension suffix",
+        ):
+            _namespaced_collection_name()
+
 
 # -- Fix 3: 5xx Gemini errors trigger retry ----------------------------------
 
