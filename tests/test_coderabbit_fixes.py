@@ -114,3 +114,46 @@ class TestEmbeddingProviderKeyValidation:
         assert s.llm_provider == "openai"
 
 
+# -- Fix 2: Collection name includes embedding_dimensions --------------------
+
+
+class TestCollectionNameIncludesDimensions:
+    """CodeRabbit: vector_store.py - include dimensions in collection name."""
+
+    def test_different_dimensions_produce_different_names(self, monkeypatch):
+        """Changing embedding_dimensions must produce a different collection name."""
+        from src.config.settings import settings
+        from src.rag.vector_store import _namespaced_collection_name
+
+        monkeypatch.setattr(settings, "embedding_provider", "gemini")
+        monkeypatch.setattr(settings, "gemini_embedding_model", "gemini-embedding-001")
+
+        monkeypatch.setattr(settings, "embedding_dimensions", 768)
+        name_768 = _namespaced_collection_name()
+
+        monkeypatch.setattr(settings, "embedding_dimensions", 256)
+        name_256 = _namespaced_collection_name()
+
+        assert name_768 != name_256
+        assert "768d" in name_768
+        assert "256d" in name_256
+
+    def test_collection_name_within_63_chars(self, monkeypatch):
+        """Name must stay within ChromaDB's 63-char limit even with long model tags."""
+        from src.config.settings import settings
+        from src.rag.vector_store import _namespaced_collection_name
+
+        monkeypatch.setattr(settings, "embedding_provider", "openai")
+        monkeypatch.setattr(
+            settings,
+            "embedding_model",
+            "a-very-long-model-name-that-could-exceed-limits-easily",
+        )
+        monkeypatch.setattr(settings, "embedding_dimensions", 3072)
+        monkeypatch.setattr(settings, "chroma_collection_name", "code_reviews")
+
+        name = _namespaced_collection_name()
+        assert len(name) <= 63
+        assert "3072d" in name
+
+
