@@ -234,3 +234,58 @@ class TestGemini5xxRetry:
         assert mock_generate.call_count == 1
 
 
+# -- Fix 4: Query embeddings use RETRIEVAL_QUERY -----------------------------
+
+
+class TestEmbeddingTaskType:
+    """CodeRabbit: embeddings.py - query path uses RETRIEVAL_QUERY."""
+
+    def _make_gemini_service(self, monkeypatch):
+        from src.config.settings import settings
+
+        monkeypatch.setattr(settings, "embedding_provider", "gemini")
+        monkeypatch.setattr(settings, "gemini_api_key", "real-looking-key-for-test")
+        monkeypatch.setattr(settings, "gemini_embedding_model", "gemini-embedding-001")
+        monkeypatch.setattr(settings, "embedding_dimensions", 768)
+
+        from src.rag.embeddings import EmbeddingService
+
+        service = EmbeddingService()
+        assert service.mock_mode is False
+        return service
+
+    def test_embed_code_change_uses_retrieval_query(self, monkeypatch):
+        """embed_code_change (query path) should pass task_type=RETRIEVAL_QUERY to Gemini."""
+        service = self._make_gemini_service(monkeypatch)
+
+        mock_emb = MagicMock()
+        mock_emb.values = [0.1] * 768
+        mock_response = MagicMock()
+        mock_response.embeddings = [mock_emb]
+        mock_embed = MagicMock(return_value=mock_response)
+        monkeypatch.setattr(service.client.models, "embed_content", mock_embed)
+
+        service.embed_code_change("def foo(): pass", context="test file")
+
+        mock_embed.assert_called_once()
+        config_arg = mock_embed.call_args.kwargs["config"]
+        assert config_arg.task_type == "RETRIEVAL_QUERY"
+
+    def test_embed_batch_uses_retrieval_document(self, monkeypatch):
+        """embed_batch (ingestion path) should still pass task_type=RETRIEVAL_DOCUMENT."""
+        service = self._make_gemini_service(monkeypatch)
+
+        mock_emb = MagicMock()
+        mock_emb.values = [0.1] * 768
+        mock_response = MagicMock()
+        mock_response.embeddings = [mock_emb, mock_emb]
+        mock_embed = MagicMock(return_value=mock_response)
+        monkeypatch.setattr(service.client.models, "embed_content", mock_embed)
+
+        service.embed_batch(["text1", "text2"])
+
+        mock_embed.assert_called_once()
+        config_arg = mock_embed.call_args.kwargs["config"]
+        assert config_arg.task_type == "RETRIEVAL_DOCUMENT"
+
+
