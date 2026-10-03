@@ -1,0 +1,19 @@
+{
+  "id": "case_12_unclosed_file_resource",
+  "title": "Unclosed file handle opened without context manager",
+  "difficulty": "obvious",
+  "file_path": "src/utils/exporter.py",
+  "language": "python",
+  "diff": "@@ -1,4 +1,4 @@\n def export_summary_report(output_path: str, data: str) -> None:\n-    with open(output_path, \"w\", encoding=\"utf-8\") as f:\n-        f.write(data)\n+    f = open(output_path, \"w\", encoding=\"utf-8\")\n+    f.write(data)\n     return None\n",
+  "ground_truth": [
+    {
+      "line_number": 2,
+      "category": "best_practice",
+      "keywords": [
+        "context manager",
+        "with"
+      ],
+      "description": "Opening file without with statement context manager leaks file handle on error."
+    }
+  ]
+}

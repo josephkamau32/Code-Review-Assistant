@@ -1,0 +1,19 @@
+{
+  "id": "case_07_n_plus_one_query",
+  "title": "N+1 database query loop inside user order processing",
+  "difficulty": "obvious",
+  "file_path": "src/services/report.py",
+  "language": "python",
+  "diff": "@@ -1,9 +1,6 @@\n def load_user_summaries(db, user_ids: list[int]) -> list[dict]:\n     summaries = []\n-    orders = db.query(Order).filter(Order.user_id.in_(user_ids)).all()\n-    orders_by_user = {}\n-    for o in orders:\n-        orders_by_user.setdefault(o.user_id, []).append(o)\n     for uid in user_ids:\n-        summaries.append({\"user_id\": uid, \"orders\": orders_by_user.get(uid, [])})\n+        user_orders = db.query(Order).filter_by(user_id=uid).all()\n+        summaries.append({\"user_id\": uid, \"orders\": user_orders})\n     return summaries\n",
+  "ground_truth": [
+    {
+      "line_number": 4,
+      "category": "performance",
+      "keywords": [
+        "n+1",
+        "query"
+      ],
+      "description": "Executing database queries inside a loop creates an N+1 query performance bottleneck."
+    }
+  ]
+}

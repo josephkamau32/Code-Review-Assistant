@@ -1,0 +1,19 @@
+{
+  "id": "case_20_subtle_check_then_act_race",
+  "title": "Subtle check-then-act directory creation race condition",
+  "difficulty": "subtle",
+  "file_path": "src/utils/fs.py",
+  "language": "python",
+  "diff": "@@ -2,4 +2,5 @@\n \n def ensure_cache_directory(cache_dir: str) -> None:\n     \"\"\"Ensure the target cache directory exists.\"\"\"\n-    os.makedirs(cache_dir, exist_ok=True)\n+    if not os.path.exists(cache_dir):\n+        os.makedirs(cache_dir)\n",
+  "ground_truth": [
+    {
+      "line_number": 5,
+      "category": "bug",
+      "keywords": [
+        "race",
+        "exist_ok"
+      ],
+      "description": "Check-then-act pattern creates TOCTOU race condition in concurrent environments; use exist_ok=True."
+    }
+  ]
+}

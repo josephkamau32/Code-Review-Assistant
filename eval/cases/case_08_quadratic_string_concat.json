@@ -1,0 +1,19 @@
+{
+  "id": "case_08_quadratic_string_concat",
+  "title": "Repeated string concatenation inside large loop (quadratic complexity)",
+  "difficulty": "obvious",
+  "file_path": "src/utils/formatter.py",
+  "language": "python",
+  "diff": "@@ -1,3 +1,5 @@\n def format_records_csv(records: list[dict]) -> str:\n-    lines = [f\"{r['id']},{r['name']},{r['value']}\" for r in records]\n-    return \"\\n\".join(lines)\n+    csv_output = \"\"\n+    for r in records:\n+        csv_output += f\"{r['id']},{r['name']},{r['value']}\\n\"\n+    return csv_output\n",
+  "ground_truth": [
+    {
+      "line_number": 4,
+      "category": "performance",
+      "keywords": [
+        "concat",
+        "join"
+      ],
+      "description": "String concatenation using += inside loop causes quadratic O(N^2) memory reallocation; use str.join instead."
+    }
+  ]
+}

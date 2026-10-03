@@ -1,0 +1,19 @@
+{
+  "id": "case_05_mutable_default_arg",
+  "title": "Mutable default argument accumulates state across invocations",
+  "difficulty": "obvious",
+  "file_path": "src/models/user_profile.py",
+  "language": "python",
+  "diff": "@@ -1,6 +1,6 @@\n from typing import List, Optional\n \n-def add_user_role(role: str, roles: Optional[List[str]] = None) -> List[str]:\n-    assigned = list(roles) if roles is not None else []\n+def add_user_role(role: str, roles: List[str] = []) -> List[str]:\n+    assigned = roles\n     assigned.append(role)\n     return assigned\n",
+  "ground_truth": [
+    {
+      "line_number": 3,
+      "category": "bug",
+      "keywords": [
+        "mutable",
+        "default"
+      ],
+      "description": "Using a mutable default argument [] causes state to leak across invocations."
+    }
+  ]
+}

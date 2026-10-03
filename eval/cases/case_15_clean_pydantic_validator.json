@@ -1,0 +1,9 @@
+{
+  "id": "case_15_clean_pydantic_validator",
+  "title": "Clean Pydantic schema with strict field validation",
+  "difficulty": "clean",
+  "file_path": "src/schemas/payment.py",
+  "language": "python",
+  "diff": "@@ -1,7 +1,17 @@\n from decimal import Decimal\n-from pydantic import BaseModel, Field\n+from pydantic import BaseModel, Field, field_validator\n \n class PaymentRequest(BaseModel):\n-    account_id: str\n-    amount: Decimal\n-    currency: str\n+    \"\"\"Validates outgoing currency transactions.\"\"\"\n+    account_id: str = Field(..., min_length=4, max_length=64)\n+    amount: Decimal = Field(..., gt=Decimal(\"0.00\"))\n+    currency: str = Field(default=\"EUR\", max_length=3)\n+\n+    @field_validator(\"currency\")\n+    @classmethod\n+    def validate_currency_code(cls, v: str) -> str:\n+        allowed = {\"EUR\", \"USD\", \"GBP\", \"CHF\"}\n+        upper = v.upper()\n+        if upper not in allowed:\n+            raise ValueError(f\"Unsupported currency: {v}\")\n+        return upper\n",
+  "ground_truth": []
+}

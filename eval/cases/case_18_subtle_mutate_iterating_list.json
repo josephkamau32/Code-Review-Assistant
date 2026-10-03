@@ -1,0 +1,19 @@
+{
+  "id": "case_18_subtle_mutate_iterating_list",
+  "title": "Subtle list element deletion during iteration",
+  "difficulty": "subtle",
+  "file_path": "src/services/pruner.py",
+  "language": "python",
+  "diff": "@@ -3,4 +3,6 @@\n def remove_expired_tokens(active_tokens: list[dict]) -> None:\n     \"\"\"Remove stale sessions directly from the active token list.\"\"\"\n     now = time.time()\n-    active_tokens[:] = [t for t in active_tokens if t[\"expires_at\"] > now]\n+    for token in active_tokens:\n+        if token[\"expires_at\"] <= now:\n+            active_tokens.remove(token)\n",
+  "ground_truth": [
+    {
+      "line_number": 8,
+      "category": "bug",
+      "keywords": [
+        "iterat",
+        "modify"
+      ],
+      "description": "Mutating list while iterating over it causes element skipping due to index shifts."
+    }
+  ]
+}

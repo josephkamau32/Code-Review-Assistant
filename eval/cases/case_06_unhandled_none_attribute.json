@@ -1,0 +1,19 @@
+{
+  "id": "case_06_unhandled_none_attribute",
+  "title": "Unchecked None dereference on optional query result",
+  "difficulty": "obvious",
+  "file_path": "src/services/billing.py",
+  "language": "python",
+  "diff": "@@ -1,5 +1,3 @@\n def get_customer_zipcode(db, customer_id: str) -> str:\n     customer = db.find_customer(customer_id)\n-    if not customer or not customer.address:\n-        return \"UNKNOWN\"\n     return customer.address.postal_code\n",
+  "ground_truth": [
+    {
+      "line_number": 3,
+      "category": "bug",
+      "keywords": [
+        "none",
+        "attribute"
+      ],
+      "description": "Accessing customer.address without verifying that customer is not None causes AttributeError."
+    }
+  ]
+}

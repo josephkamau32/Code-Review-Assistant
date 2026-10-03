@@ -1,0 +1,9 @@
+{
+  "id": "case_14_clean_lru_cache_validator",
+  "title": "Clean memoized prime checker with type hints and boundary checks",
+  "difficulty": "clean",
+  "file_path": "src/cache/memoizer.py",
+  "language": "python",
+  "diff": "@@ -1,5 +1,17 @@\n import math\n from functools import lru_cache\n \n+@lru_cache(maxsize=1024)\n def is_prime(n: int) -> bool:\n-    raise NotImplementedError\n+    \"\"\"Return True if n is prime, False otherwise.\"\"\"\n+    if n <= 1:\n+        return False\n+    if n <= 3:\n+        return True\n+    if n % 2 == 0 or n % 3 == 0:\n+        return False\n+    limit = int(math.isqrt(n))\n+    for i in range(5, limit + 1, 6):\n+        if n % i == 0 or n % (i + 2) == 0:\n+            return False\n+    return True\n",
+  "ground_truth": []
+}
