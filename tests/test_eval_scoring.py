@@ -69,15 +69,16 @@ def test_category_mismatch(sample_ground_truth):
 
 
 def test_keyword_mismatch(sample_ground_truth):
-    """Confirm a suggestion without any expected keyword does not match."""
+    """Confirm a suggestion without expected keywords still matches when category and line match."""
     suggestion = {
         "line_number": 10,
         "category": "security",
         "suggestion": "Use parameterized statements instead of direct concatenation.",
     }
-    # Expected keywords are ["sql", "injection"], neither is in suggestion text
+    # Expected keywords are ["sql", "injection"], neither is in suggestion text,
+    # but keyword matching is informational and not a hard pass/fail gate for is_match.
     dist = is_match(sample_ground_truth, suggestion, line_tolerance=3)
-    assert dist is None
+    assert dist == 0
 
 
 def test_score_case_hit_and_extra_suggestion():
@@ -267,6 +268,7 @@ def test_format_markdown_report():
     assert "Overall Defect Recall" in report
     assert "case_01" in report
     assert "PASS" in report
+    assert "keyword_matched: true" in report
 
 
 def test_errored_clean_case_excluded_from_clean_fp_denominator():
@@ -341,3 +343,38 @@ def test_errored_non_clean_case_records_misses_in_category_and_difficulty():
         sum(dm.total_issues for dm in metrics.by_difficulty.values())
         == metrics.total_ground_truth_issues
     )
+
+
+def test_score_case_hit_with_different_wording_than_keywords():
+    """Confirm a suggestion with different wording than keywords is scored as a hit with keyword_matched=False."""
+    case_data = {
+        "id": "case_diff_wording",
+        "title": "SQL Injection Different Wording",
+        "difficulty": "obvious",
+        "ground_truth": [
+            {
+                "line_number": 25,
+                "category": "security",
+                "keywords": ["sql", "injection"],
+                "description": "SQL injection vulnerability in user input",
+            }
+        ],
+    }
+    # Suggestion catches the real vulnerability with completely different phrasing
+    suggestions = [
+        {
+            "line_number": 25,
+            "category": "security",
+            "suggestion": "Untrusted input passed directly into database execution without bind parameters.",
+        }
+    ]
+    scored = score_case(case_data, suggestions, line_tolerance=3)
+
+    assert len(scored.hits) == 1
+    assert len(scored.misses) == 0
+    hit = scored.hits[0]
+    assert hit.line_distance == 0
+    assert hit.is_exact_line is True
+    assert (
+        hit.keyword_matched is False
+    )  # Informational flag tracks keyword absence without failing the hit

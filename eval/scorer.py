@@ -33,6 +33,7 @@ class HitMatch:
     suggestion: Dict[str, Any]
     line_distance: int
     is_exact_line: bool  # True if abs(line_distance) <= 1
+    keyword_matched: bool = False
 
 
 @dataclass
@@ -93,6 +94,7 @@ def is_match(
     """Check if a suggestion matches a ground truth issue.
 
     Returns the absolute line distance if matched, or None if not matched.
+    A hit requires category match and line number within tolerance.
     """
     sugg_cat = str(suggestion.get("category", "")).strip().lower()
     if sugg_cat != gt.category:
@@ -109,14 +111,6 @@ def is_match(
 
     line_distance = abs(sugg_line - gt.line_number)
     if line_distance > line_tolerance:
-        return None
-
-    sugg_text = str(suggestion.get("suggestion", "")).lower()
-    if not gt.keywords:
-        return line_distance
-
-    has_keyword = any(kw in sugg_text for kw in gt.keywords)
-    if not has_keyword:
         return None
 
     return line_distance
@@ -182,12 +176,18 @@ def score_case(
         )
         if best_idx is not None:
             used_suggestion_indices.add(best_idx)
+            sugg = suggestions[best_idx]
+            sugg_text = str(sugg.get("suggestion", "")).lower()
+            kw_matched = bool(
+                gt.keywords and any(kw in sugg_text for kw in gt.keywords)
+            )
             scored.hits.append(
                 HitMatch(
                     ground_truth=gt,
-                    suggestion=suggestions[best_idx],
+                    suggestion=sugg,
                     line_distance=best_dist,
                     is_exact_line=best_dist <= 1,
+                    keyword_matched=kw_matched,
                 )
             )
         else:
@@ -342,9 +342,10 @@ def _format_hits_and_misses(sc: ScoredCase, lines: List[str]):
         dist_str = (
             "exact (+/-1)" if hit.is_exact_line else f"+/-{hit.line_distance} lines"
         )
+        kw_str = f"keyword_matched: {str(hit.keyword_matched).lower()}"
         lines.append(
             f"  - Target L{hit.ground_truth.line_number} -> Suggested L{hit.suggestion.get('line_number')} "
-            f"({dist_str}) [{hit.ground_truth.category}]: {hit.suggestion.get('suggestion')}"
+            f"({dist_str}, {kw_str}) [{hit.ground_truth.category}]: {hit.suggestion.get('suggestion')}"
         )
     if not sc.hits:
         lines.append("  - None")

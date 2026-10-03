@@ -287,7 +287,7 @@ def main():
     print(f"Total Cases:                 {metrics.total_cases}")
     print(f"Errored Cases:               {metrics.errored_cases}")
 
-    precision_stat = f"{metrics.overall_precision * 100:.1f}% ({metrics.total_hits}/{metrics.total_suggestions or 1})"
+    precision_stat = f"{metrics.overall_precision * 100:.1f}% ({metrics.total_hits}/{metrics.total_suggestions})"
     recall_stat = f"{metrics.overall_recall * 100:.1f}% ({metrics.total_hits}/{metrics.total_ground_truth_issues})"
     accuracy_stat = f"{metrics.line_accuracy_rate * 100:.1f}% ({metrics.hits_within_one_line}/{metrics.total_hits or 1})"
     clean_fp_pct = f"{metrics.clean_false_positive_rate * 100:.1f}%"
