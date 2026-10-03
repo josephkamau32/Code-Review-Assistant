@@ -42,21 +42,24 @@ Each case defines:
 ## Scoring Methodology
 
 ### 1. Defect Hit Matching
-A ground-truth defect counts as a **HIT** if and only if an LLM suggestion meets all three conditions:
+A ground-truth defect counts as a **HIT** if an LLM suggestion meets both conditions:
 1. **Category Match:** Case-insensitive match on the schema enum (`security`, `bug`, `performance`, `style`, `best_practice`).
 2. **Line Tolerance (+/-3 lines):** The suggested line is within +/-3 lines of the intended ground truth line.
    - *Rationale:* Git diff hunks standardly provide 3 lines of context (`-U 3`). LLMs frequently anchor comments to the enclosing function header, `try/except` block, or return line rather than the exact interior statement. A 3-line tolerance captures valid semantic reviews without misclassifying anchoring variance as a failure.
-3. **Keyword Substring Match:** The suggestion text contains at least one keyword from the ground truth annotation (case-insensitive substring).
 
-### 2. Line Accuracy Metric (+/-1 line)
+### 2. Informational Keyword Matching
+Keyword presence is tracked as an informational flag (`keyword_matched: true/false`) displayed per hit in the generated report. Keywords are deliberately **not** used as a hard pass/fail gate in hit matching: doing so would penalize valid suggestions that describe the bug using different vocabulary (e.g., recommending parameterized queries without containing the literal word "injection"), or spuriously match unrelated text that happens to include a common keyword.
+
+### 3. Line Accuracy Metric (+/-1 line)
 Among detected hits, the harness tracks how many suggestions landed within **+/-1 line** of the target line. This isolates exact line precision from loose context anchoring.
 
-### 3. Clean-Case False Positive Rate
-For the 4 clean cases, **any** returned suggestion is scored as a false positive. The clean false-positive rate is:
-$$\text{Clean FP Rate} = \frac{\text{Clean Cases with } \ge 1 \text{ suggestion}}{\text{Total Clean Cases (4)}}$$
+### 4. Clean-Case False Positive Rate
+For the 4 clean cases, **any** returned suggestion is scored as a false positive. Errored clean cases (e.g., due to API execution failures) are excluded from the denominator:
+$$\text{Clean FP Rate} = \frac{\text{Completed Clean Cases with } \ge 1 \text{ suggestion}}{\text{Total Completed Clean Cases}}$$
 
-### 4. Extra Suggestions Handling
-If the model flags additional observations in a non-clean case that do not match the planted defect, they are **not** automatically penalized as false positives (the model may have identified a valid secondary style or design point). Instead, they are collected and listed under "Extra Suggestions" in the report for manual human inspection.
+### 5. Extra Suggestions & Precision Accounting
+If the model flags additional observations in a non-clean case that do not match the planted defect, they are collected and listed under "Extra Suggestions" in the report for manual human inspection. Overall precision is computed across all suggestions generated:
+$$\text{Precision} = \frac{\text{Total Hits}}{\text{Total Hits} + \text{Extra Suggestions} + \text{Clean False Positives}}$$
 
 ---
 

@@ -170,6 +170,10 @@ def score_case(
         return scored
 
     used_suggestion_indices = set()
+    # Note: Greedy per-ground-truth-issue assignment. Guaranteed optimal when each
+    # case contains at most one ground-truth issue (true for all current cases, max=1).
+    # If the dataset is extended with multi-issue cases where suggestions compete,
+    # consider upgrading to maximum-weight bipartite matching (e.g., Hungarian algorithm).
     for gt in gt_list:
         best_idx, best_dist = _find_best_match(
             gt, suggestions, used_suggestion_indices, line_tolerance
