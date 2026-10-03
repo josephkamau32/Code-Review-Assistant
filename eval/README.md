@@ -85,6 +85,7 @@ python eval/run_eval.py
 - `--cases-dir <dir>`: Custom test cases directory (default: `eval/cases`)
 - `--output-dir <dir>`: Custom report output directory (default: `eval/results`)
 - `--tolerance <int>`: Hit line tolerance window (default: `3`)
+- `--delay <float>`: Sleep delay in seconds between cases in real API mode to respect free-tier rate limits (default: `4.0`)
 - `--mock` / `--dry-run`: Enable simulated offline mode
 
 ---

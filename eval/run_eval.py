@@ -15,6 +15,7 @@ import glob
 import json
 import os
 import sys
+import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List
 from unittest.mock import MagicMock
@@ -64,6 +65,12 @@ def parse_args():
         type=int,
         default=3,
         help="Line number tolerance for hit matching (+/- lines, default: 3)",
+    )
+    parser.add_argument(
+        "--delay",
+        type=float,
+        default=4.0,
+        help="Sleep delay in seconds between cases in real API mode (default: 4.0)",
     )
     parser.add_argument(
         "--mock",
@@ -263,6 +270,10 @@ def main():
             scored_cases.append(
                 score_case(case_data, [], line_tolerance=args.tolerance, error=str(exc))
             )
+
+        # In real API mode, pause between cases to respect free-tier rate limits (15 RPM)
+        if not args.mock_mode and args.delay > 0 and idx < len(cases) - 1:
+            time.sleep(args.delay)
 
     metrics = aggregate_scores(scored_cases)
     report_path = _save_report(
