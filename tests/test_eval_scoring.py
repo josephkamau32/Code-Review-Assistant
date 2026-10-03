@@ -294,3 +294,50 @@ def test_errored_clean_case_excluded_from_clean_fp_denominator():
     assert metrics.clean_cases_count == 1  # Only the completed clean case
     assert metrics.clean_cases_with_fp == 1
     assert metrics.clean_false_positive_rate == 1.0  # 1 / 1, not 1 / 2
+
+
+def test_errored_non_clean_case_records_misses_in_category_and_difficulty():
+    """Confirm errored obvious/subtle cases still register their misses in by_category and by_difficulty."""
+    case_obvious_err = {
+        "id": "c_err_obvious",
+        "title": "SQL Injection",
+        "difficulty": "obvious",
+        "ground_truth": [
+            {
+                "line_number": 42,
+                "category": "security",
+                "keywords": ["sql injection", "parameterize"],
+            }
+        ],
+    }
+    sc_err = score_case(case_obvious_err, [], error="Connection reset by peer")
+
+    metrics = aggregate_scores([sc_err])
+
+    assert metrics.errored_cases == 1
+    assert metrics.total_hits == 0
+    # Top-level ground truth accounting
+    assert metrics.total_ground_truth_issues == 1
+    assert metrics.overall_recall == 0.0
+
+    # Category-level accounting
+    assert "security" in metrics.by_category
+    assert metrics.by_category["security"].total_issues == 1
+    assert metrics.by_category["security"].hits == 0
+    assert metrics.by_category["security"].recall == 0.0
+
+    # Difficulty-level accounting
+    assert "obvious" in metrics.by_difficulty
+    assert metrics.by_difficulty["obvious"].total_issues == 1
+    assert metrics.by_difficulty["obvious"].hits == 0
+    assert metrics.by_difficulty["obvious"].recall == 0.0
+
+    # Accounting agreement between top-level and breakdowns
+    assert (
+        sum(cm.total_issues for cm in metrics.by_category.values())
+        == metrics.total_ground_truth_issues
+    )
+    assert (
+        sum(dm.total_issues for dm in metrics.by_difficulty.values())
+        == metrics.total_ground_truth_issues
+    )

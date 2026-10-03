@@ -204,7 +204,8 @@ def _record_case_metrics(sc: ScoredCase, metrics: EvalMetrics):
     """Update metrics counters for a single scored case."""
     if sc.error:
         metrics.errored_cases += 1
-        return
+        if sc.difficulty == "clean" or not sc.ground_truth:
+            return
 
     if sc.difficulty == "clean":
         metrics.clean_cases_count += 1
