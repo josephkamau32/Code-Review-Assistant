@@ -78,6 +78,9 @@ class EvalMetrics:
         0.0  # clean cases with >=1 FP / total clean cases
     )
     total_clean_false_positives: int = 0
+    total_extra_suggestions: int = 0
+    total_suggestions: int = 0
+    overall_precision: float = 0.0
     by_category: Dict[str, CategoryMetric] = field(default_factory=dict)
     by_difficulty: Dict[str, DifficultyMetric] = field(default_factory=dict)
 
@@ -201,6 +204,7 @@ def _record_case_metrics(sc: ScoredCase, metrics: EvalMetrics):
     """Update metrics counters for a single scored case."""
     if sc.error:
         metrics.errored_cases += 1
+        return
 
     if sc.difficulty == "clean":
         metrics.clean_cases_count += 1
@@ -208,6 +212,8 @@ def _record_case_metrics(sc: ScoredCase, metrics: EvalMetrics):
             metrics.clean_cases_with_fp += 1
         metrics.total_clean_false_positives += sc.clean_false_positives
         return
+
+    metrics.total_extra_suggestions += len(sc.extra_suggestions)
 
     for hit in sc.hits:
         metrics.total_hits += 1
@@ -232,6 +238,16 @@ def _record_case_metrics(sc: ScoredCase, metrics: EvalMetrics):
 
 def _compute_rates(metrics: EvalMetrics):
     """Calculate percentage rates across all aggregated categories."""
+    metrics.total_suggestions = (
+        metrics.total_hits
+        + metrics.total_extra_suggestions
+        + metrics.total_clean_false_positives
+    )
+    if metrics.total_suggestions > 0:
+        metrics.overall_precision = round(
+            metrics.total_hits / metrics.total_suggestions, 4
+        )
+
     if metrics.total_ground_truth_issues > 0:
         metrics.overall_recall = round(
             metrics.total_hits / metrics.total_ground_truth_issues, 4
@@ -287,6 +303,12 @@ def _format_summary_table(metrics: EvalMetrics, lines: List[str]):
     )
     lines.append(
         f"| **Errored Cases** | {metrics.errored_cases} | Pipeline execution failures |"
+    )
+
+    prec_pct = f"{metrics.overall_precision * 100:.1f}%"
+    prec_detail = f"({metrics.total_hits}/{metrics.total_suggestions})"
+    lines.append(
+        f"| **Overall Precision** | **{prec_pct}** {prec_detail} | Suggestions that matched true defects |"
     )
 
     rec_pct = f"{metrics.overall_recall * 100:.1f}%"

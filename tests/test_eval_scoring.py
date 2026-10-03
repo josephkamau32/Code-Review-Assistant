@@ -214,6 +214,8 @@ def test_aggregate_scores_math():
     assert metrics.total_ground_truth_issues == 2
     assert metrics.total_hits == 1
     assert metrics.overall_recall == 0.5  # 1 hit / 2 issues
+    assert metrics.total_suggestions == 2  # 1 hit + 1 extra suggestion
+    assert metrics.overall_precision == 0.5  # 1 hit / 2 suggestions
     assert metrics.hits_within_one_line == 1
     assert metrics.line_accuracy_rate == 1.0  # 1 exact hit / 1 total hit
     assert metrics.clean_cases_count == 1
@@ -265,3 +267,30 @@ def test_format_markdown_report():
     assert "Overall Defect Recall" in report
     assert "case_01" in report
     assert "PASS" in report
+
+
+def test_errored_clean_case_excluded_from_clean_fp_denominator():
+    """Confirm clean cases that errored during execution are not counted in clean_cases_count."""
+    case_clean_ok = {
+        "id": "c_ok",
+        "title": "Clean OK",
+        "difficulty": "clean",
+        "ground_truth": [],
+    }
+    case_clean_err = {
+        "id": "c_err",
+        "title": "Clean Error",
+        "difficulty": "clean",
+        "ground_truth": [],
+    }
+    sc_ok = score_case(
+        case_clean_ok,
+        [{"line_number": 5, "category": "bug", "suggestion": "Spurious"}],
+    )
+    sc_err = score_case(case_clean_err, [], error="API rate limit exceeded")
+
+    metrics = aggregate_scores([sc_ok, sc_err])
+    assert metrics.errored_cases == 1
+    assert metrics.clean_cases_count == 1  # Only the completed clean case
+    assert metrics.clean_cases_with_fp == 1
+    assert metrics.clean_false_positive_rate == 1.0  # 1 / 1, not 1 / 2

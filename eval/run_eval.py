@@ -96,10 +96,10 @@ def load_cases(cases_dir: str) -> List[Dict[str, Any]]:
 
 def build_mock_llm_service(pipeline: RAGPipeline, cases: List[Dict[str, Any]]):
     """Patch pipeline.llm_service to produce realistic simulated responses for dry-run."""
-    case_map = {c["file_path"]: c for c in cases}
+    case_map = {(c["file_path"], c["diff"]): c for c in cases}
 
     def mock_generate_review(code_change, similar_reviews=None, style_guide_context=""):
-        c = case_map.get(code_change.file_path)
+        c = case_map.get((code_change.file_path, code_change.diff))
         if not c:
             return {"suggestions": []}
 
@@ -207,9 +207,10 @@ def _save_report(
 ) -> str:
     """Write markdown evaluation report and return path."""
     os.makedirs(output_dir, exist_ok=True)
-    slug = datetime.now().strftime("%Y%m%d_%H%M%S")
+    now_utc = datetime.now(timezone.utc)
+    slug = now_utc.strftime("%Y%m%d_%H%M%S_%f")
     report_path = os.path.join(output_dir, f"run_{slug}.md")
-    timestamp_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
+    timestamp_str = now_utc.strftime("%Y-%m-%d %H:%M:%S UTC")
 
     report_content = format_markdown_report(
         metrics=metrics,
@@ -286,6 +287,7 @@ def main():
     print(f"Total Cases:                 {metrics.total_cases}")
     print(f"Errored Cases:               {metrics.errored_cases}")
 
+    precision_stat = f"{metrics.overall_precision * 100:.1f}% ({metrics.total_hits}/{metrics.total_suggestions or 1})"
     recall_stat = f"{metrics.overall_recall * 100:.1f}% ({metrics.total_hits}/{metrics.total_ground_truth_issues})"
     accuracy_stat = f"{metrics.line_accuracy_rate * 100:.1f}% ({metrics.hits_within_one_line}/{metrics.total_hits or 1})"
     clean_fp_pct = f"{metrics.clean_false_positive_rate * 100:.1f}%"
@@ -293,6 +295,7 @@ def main():
         f"{clean_fp_pct} ({metrics.clean_cases_with_fp}/{metrics.clean_cases_count})"
     )
 
+    print(f"Overall Precision:           {precision_stat}")
     print(f"Overall Defect Recall:       {recall_stat}")
     print(f"Line Accuracy (+/-1 line):   {accuracy_stat}")
     print(f"Clean False Positive Rate:   {clean_fp_stat}")
