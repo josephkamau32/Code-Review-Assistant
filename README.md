@@ -69,6 +69,41 @@ pytest -m integration
 pytest -m e2e
 ```
 
+## Evaluation Results (LLM-02)
+
+The RAG pipeline was benchmarked against a 20-case golden dataset (12 single-bug
+cases across 5 categories, 4 clean-code cases, 4 deliberately subtle bugs) using
+the real Gemini API (`gemini-3.5-flash-lite`). Full methodology: [eval/README.md](eval/README.md).
+
+| Metric | Run 1 | Run 2 |
+|---|---|---|
+| Overall defect recall | 93.8% (15/16) | 93.8% (15/16) |
+| Recall on obvious bugs | 100% (12/12) | 100% (12/12) |
+| Recall on subtle bugs | 75% (3/4) | 75% (3/4) |
+| Line accuracy (±1 line) | 86.7% | 86.7% |
+| Clean-code false positive rate | 75% (3/4 cases) | 75% (3/4 cases) |
+| Overall precision | 62.5% | 57.7% |
+
+**Two things worth noting from manual review of the raw output, not just the scored metrics:**
+
+- The one consistent "miss" (`case_20`, a TOCTOU race condition) was actually
+  caught correctly by the model in both runs — it diagnosed the exact bug with
+  the exact fix, but categorized it as `best_practice` rather than our ground
+  truth's `bug`. Since the harness requires an exact category match, this
+  surfaced as a miss. Real-world recall on this dataset is closer to 16/16;
+  this is a known limitation of strict category-matching in the scorer, not a
+  model failure — see `eval/scorer.py`'s documented matching rules.
+- The "false positives" on clean code are not hallucinated bugs — they're
+  legitimate, if minor, observations (unbounded cache growth, a missing
+  `min_length` constraint, a non-reentrant lock choice). The model behaves
+  like a thorough, somewhat nitpicky reviewer rather than one that invents
+  problems. This is a real trade-off worth being aware of when tuning
+  prompts or deciding how noisy you want review output to be.
+
+Recall was stable across two independent runs; false-positive counts and
+exact suggestion wording varied slightly, consistent with normal LLM
+non-determinism at low temperature rather than a flaky harness.
+
 ## Contributing
 
 We welcome contributions! Please refer to the guidelines in our issues and discussions. Follow PEP 8 and ensure tests pass (`pytest --cov`).
