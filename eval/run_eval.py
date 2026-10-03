@@ -23,6 +23,11 @@ from unittest.mock import MagicMock
 # Allow imports from repository root
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from dotenv import load_dotenv
+
+# Automatically load environment variables from .env if present
+load_dotenv()
+
 # If mock mode is requested, configure dummy credentials before src import
 if "--mock" in sys.argv or "--dry-run" in sys.argv:
     os.environ.setdefault("ENVIRONMENT", "testing")
@@ -41,7 +46,10 @@ try:
         format_markdown_report,
         score_case,
     )
-except ImportError as e:
+except Exception as e:
+    if not os.environ.get("GEMINI_API_KEY"):
+        print("ERROR: GEMINI_API_KEY is not set.", file=sys.stderr)
+        sys.exit(1)
     print(f"Error importing modules: {e}", file=sys.stderr)
     sys.exit(1)
 

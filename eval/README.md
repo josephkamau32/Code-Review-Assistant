@@ -75,8 +75,16 @@ python eval/run_eval.py --mock
 ### Option 2: Real Gemini Evaluation Run
 Run the full benchmark against the real Gemini API:
 
+The runner automatically loads environment variables from your project `.env` file via `python-dotenv`. If `GEMINI_API_KEY` is configured in `.env`, you can run the evaluation directly without manually exporting the variable:
+
 ```bash
-# Ensure your Gemini API key is configured
+python eval/run_eval.py
+```
+
+Alternatively, you can manually export the variable in your shell (which takes precedence over `.env` as an override):
+
+```bash
+# Optional manual shell override:
 set GEMINI_API_KEY=your-api-key-here   # Windows CMD
 $env:GEMINI_API_KEY="your-api-key"    # Windows PowerShell
 export GEMINI_API_KEY="your-api-key"  # Linux / macOS
