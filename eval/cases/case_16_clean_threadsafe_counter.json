@@ -1,0 +1,9 @@
+{
+  "id": "case_16_clean_threadsafe_counter",
+  "title": "Clean thread-safe atomic counter using threading.Lock context manager",
+  "difficulty": "clean",
+  "file_path": "src/utils/concurrency.py",
+  "language": "python",
+  "diff": "@@ -1,3 +1,19 @@\n+import threading\n+\n class AtomicCounter:\n+    \"\"\"Thread-safe integer counter protected by a lock.\"\"\"\n+\n     def __init__(self, initial_value: int = 0) -> None:\n+        self._lock = threading.Lock()\n         self._count = initial_value\n+\n+    def increment(self, step: int = 1) -> int:\n+        \"\"\"Atomically increment the counter and return the updated value.\"\"\"\n+        with self._lock:\n+            self._count += step\n+            return self._count\n+\n+    @property\n+    def value(self) -> int:\n+        with self._lock:\n+            return self._count\n",
+  "ground_truth": []
+}

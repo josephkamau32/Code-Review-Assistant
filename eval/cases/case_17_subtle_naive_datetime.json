@@ -1,0 +1,19 @@
+{
+  "id": "case_17_subtle_naive_datetime",
+  "title": "Subtle comparison between UTC-aware and naive datetime",
+  "difficulty": "subtle",
+  "file_path": "src/utils/scheduler.py",
+  "language": "python",
+  "diff": "@@ -2,5 +2,5 @@\n \n def is_token_expired(expiry_timestamp: str) -> bool:\n     \"\"\"Check if given ISO formatted token timestamp has expired.\"\"\"\n-    expiry = datetime.fromisoformat(expiry_timestamp).replace(tzinfo=timezone.utc)\n+    expiry = datetime.fromisoformat(expiry_timestamp)\n     return datetime.now(timezone.utc) > expiry\n",
+  "ground_truth": [
+    {
+      "line_number": 5,
+      "category": "bug",
+      "keywords": [
+        "timezone",
+        "naive"
+      ],
+      "description": "Comparing timezone-aware datetime.now(timezone.utc) with naive datetime raises TypeError in Python 3.11."
+    }
+  ]
+}

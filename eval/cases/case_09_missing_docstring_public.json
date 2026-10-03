@@ -1,0 +1,19 @@
+{
+  "id": "case_09_missing_docstring_public",
+  "title": "Missing docstring on public API service class and methods",
+  "difficulty": "obvious",
+  "file_path": "src/services/tax_calculator.py",
+  "language": "python",
+  "diff": "@@ -1,10 +1,7 @@\n from decimal import Decimal\n \n class TaxCalculator:\n-    \"\"\"Calculates regional sales tax and export duties for orders.\"\"\"\n-\n     def calculate_rate(self, region_code: str) -> Decimal:\n-        \"\"\"Return regional rate as Decimal fraction.\"\"\"\n         if region_code == \"EU\":\n             return Decimal(\"0.20\")\n         return Decimal(\"0.00\")\n",
+  "ground_truth": [
+    {
+      "line_number": 3,
+      "category": "style",
+      "keywords": [
+        "docstring",
+        "documentation"
+      ],
+      "description": "Public class and interface methods are missing docstrings per PEP 257."
+    }
+  ]
+}

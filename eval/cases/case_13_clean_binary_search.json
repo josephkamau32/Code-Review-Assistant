@@ -1,0 +1,9 @@
+{
+  "id": "case_13_clean_binary_search",
+  "title": "Clean binary search implementation with boundary validation",
+  "difficulty": "clean",
+  "file_path": "src/utils/search.py",
+  "language": "python",
+  "diff": "@@ -3,4 +3,15 @@\n T = TypeVar(\"T\")\n \n def binary_search(elements: Sequence[T], target: T) -> Optional[int]:\n-    raise NotImplementedError\n+    \"\"\"Find index of target in sorted sequence, or None if not found.\"\"\"\n+    low, high = 0, len(elements) - 1\n+    while low <= high:\n+        mid = low + (high - low) // 2\n+        val = elements[mid]\n+        if val == target:\n+            return mid\n+        elif val < target:\n+            low = mid + 1\n+        else:\n+            high = mid - 1\n+    return None\n",
+  "ground_truth": []
+}

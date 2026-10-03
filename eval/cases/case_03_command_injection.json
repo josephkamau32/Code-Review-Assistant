@@ -1,0 +1,19 @@
+{
+  "id": "case_03_command_injection",
+  "title": "OS command injection via unsanitized subprocess call",
+  "difficulty": "obvious",
+  "file_path": "src/utils/system.py",
+  "language": "python",
+  "diff": "@@ -1,6 +1,6 @@\n import subprocess\n \n def ping_host(hostname: str) -> str:\n-    # Run ping check on target host safely without shell\n-    cmd = [\"ping\", \"-c\", \"1\", hostname]\n-    return subprocess.check_output(cmd, text=True)\n+    # Run ping check on target host via shell\n+    cmd = f\"ping -c 1 {hostname}\"\n+    return subprocess.check_output(cmd, shell=True, text=True)\n",
+  "ground_truth": [
+    {
+      "line_number": 6,
+      "category": "security",
+      "keywords": [
+        "command",
+        "injection"
+      ],
+      "description": "Executing shell commands with shell=True and unsanitized parameters allows arbitrary OS command injection."
+    }
+  ]
+}

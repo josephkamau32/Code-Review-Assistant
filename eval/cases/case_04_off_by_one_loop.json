@@ -1,0 +1,19 @@
+{
+  "id": "case_04_off_by_one_loop",
+  "title": "Off-by-one index error in pagination loop",
+  "difficulty": "obvious",
+  "file_path": "src/utils/pager.py",
+  "language": "python",
+  "diff": "@@ -1,5 +1,6 @@\n def get_page_items(items: list, page_size: int) -> list:\n     chunks = []\n-    for i in range(0, len(items), page_size):\n-        chunks.append(items[i:i + page_size])\n+    for i in range(len(items) + 1):\n+        item = items[i]\n+        chunks.append(item)\n     return chunks\n",
+  "ground_truth": [
+    {
+      "line_number": 3,
+      "category": "bug",
+      "keywords": [
+        "index",
+        "off-by-one"
+      ],
+      "description": "Loop iterates to len(items) + 1, raising IndexError when indexing items[len(items)]."
+    }
+  ]
+}

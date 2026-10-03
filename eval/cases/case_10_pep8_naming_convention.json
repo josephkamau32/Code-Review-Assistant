@@ -1,0 +1,19 @@
+{
+  "id": "case_10_pep8_naming_convention",
+  "title": "CamelCase function and argument naming violating PEP 8",
+  "difficulty": "obvious",
+  "file_path": "src/models/metrics.py",
+  "language": "python",
+  "diff": "@@ -1,4 +1,4 @@\n from decimal import Decimal\n \n-def calculate_balance_ratio(opening_balance: Decimal, net_turnover: Decimal) -> Decimal:\n-    return net_turnover / opening_balance if opening_balance else Decimal(\"0\")\n+def CalculateBalanceRatio(OpeningBalance: Decimal, NetTurnover: Decimal) -> Decimal:\n+    return NetTurnover / OpeningBalance if OpeningBalance else Decimal(\"0\")\n",
+  "ground_truth": [
+    {
+      "line_number": 3,
+      "category": "style",
+      "keywords": [
+        "pep 8",
+        "naming"
+      ],
+      "description": "Function and parameter names use CamelCase instead of PEP 8 snake_case style."
+    }
+  ]
+}

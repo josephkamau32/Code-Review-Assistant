@@ -1,0 +1,19 @@
+{
+  "id": "case_11_bare_except",
+  "title": "Bare except clause catching and swallowing all exceptions",
+  "difficulty": "obvious",
+  "file_path": "src/workers/job_runner.py",
+  "language": "python",
+  "diff": "@@ -2,6 +2,6 @@\n     try:\n         handler.execute(job_id)\n         return True\n-    except (ValueError, KeyError) as err:\n-        logger.error(f\"Job {job_id} failed with data error: {err}\")\n+    except:\n+        pass\n         return False\n",
+  "ground_truth": [
+    {
+      "line_number": 5,
+      "category": "best_practice",
+      "keywords": [
+        "bare",
+        "except"
+      ],
+      "description": "Bare except clause catches SystemExit, KeyboardInterrupt, and masks bugs silently."
+    }
+  ]
+}

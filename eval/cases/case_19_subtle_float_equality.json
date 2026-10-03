@@ -1,0 +1,19 @@
+{
+  "id": "case_19_subtle_float_equality",
+  "title": "Subtle exact equality comparison on floating point calculations",
+  "difficulty": "subtle",
+  "file_path": "src/finance/accounting.py",
+  "language": "python",
+  "diff": "@@ -3,4 +3,4 @@\n def verify_portfolio_weights(allocations: list[float]) -> bool:\n     \"\"\"Verify that asset allocation weights sum to 100%.\"\"\"\n     total = sum(allocations)\n-    return math.isclose(total, 1.0, rel_tol=1e-5)\n+    return total == 1.0\n",
+  "ground_truth": [
+    {
+      "line_number": 5,
+      "category": "bug",
+      "keywords": [
+        "float",
+        "equality"
+      ],
+      "description": "Direct equality comparison total == 1.0 on floating point numbers fails due to IEEE 754 precision inaccuracies."
+    }
+  ]
+}
