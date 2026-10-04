@@ -104,10 +104,12 @@ def load_cases(cases_dir: str) -> List[Dict[str, Any]]:
 
 def build_mock_llm_service(pipeline: RAGPipeline, cases: List[Dict[str, Any]]):
     """Patch pipeline.llm_service to produce realistic simulated responses for dry-run."""
-    case_map = {(c["file_path"], c["diff"]): c for c in cases}
+    # Assumes unique file_path values across all cases in eval/cases/.
+    # Revisit this mapping if multi-file PR cases or duplicate paths are ever introduced.
+    case_map = {c["file_path"]: c for c in cases}
 
     def mock_generate_review(code_change, similar_reviews=None, style_guide_context=""):
-        c = case_map.get((code_change.file_path, code_change.diff))
+        c = case_map.get(code_change.file_path)
         if not c:
             return {"suggestions": []}
 
