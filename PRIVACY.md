@@ -7,10 +7,10 @@
 
 When a pull request is reviewed, the following data is sent to **external cloud APIs**:
 
-| Data                      | Destination                          | Purpose                         |
-|---------------------------|--------------------------------------|---------------------------------|
-| Code diff (redacted)      | Embedding API (Gemini or OpenAI)     | Generate vector for similarity search |
-| Code diff (redacted) + historical review context | LLM API (Gemini or OpenAI) | Generate code review suggestions |
+| Data                                                           | Destination                          | Purpose                         |
+|----------------------------------------------------------------|--------------------------------------|---------------------------------|
+| Code diff & file path (redacted)                               | Embedding API (Gemini or OpenAI)     | Generate vector for similarity search |
+| Code diff & file path (redacted) + historical review context (redacted) | LLM API (Gemini or OpenAI) | Generate code review suggestions |
 
 **Default provider:** Google Gemini (`generativelanguage.googleapis.com`).
 If configured, OpenAI (`api.openai.com`) can be used instead.
@@ -20,11 +20,11 @@ Both providers are US-based cloud services.  Data in transit is TLS-encrypted, b
 ### What stays local
 
 - The **ChromaDB vector database** storing historical review embeddings runs locally (on disk, not a cloud service).
-- **GitHub metadata** (PR numbers, file paths, branch names) is processed locally and posted back to GitHub via the GitHub API.
+- **GitHub metadata** (PR numbers, repository names, branch names) is processed locally and posted back to GitHub via the GitHub API.  (Note: File paths and code diffs are transmitted as context to external APIs for embedding and review generation, but both are passed through the redaction layer first).
 
 ## Secret & PII redaction
 
-A regex-based redaction layer (`src/utils/redaction.py`) scrubs the following from code diffs **before** they are sent to any external API:
+A regex-based redaction layer (`src/utils/redaction.py`) scrubs the following from code diffs, file paths, and historical review ingestion (code snippets and comments) **before** data is sent to external APIs or stored in the vector database:
 
 - **Provider-specific API keys:** AWS (`AKIA…`), Google/Gemini (`AIza…`), GitHub tokens (`ghp_`, `gho_`, `github_pat_`), OpenAI-style (`sk-…`), Slack (`xoxb-`, `xoxp-`)
 - **Generic secret assignments:** Variables containing `KEY`, `SECRET`, `TOKEN`, `PASSWORD`, `CREDENTIAL`, or `AUTH` in their name, with a quoted string value
@@ -38,7 +38,7 @@ Be clear about this — the redaction layer is **not** a complete data-loss-prev
 
 - **Regex-only.** It matches known patterns. Creatively formatted, obfuscated, or non-standard secrets will be missed.
 - **No entropy analysis.** High-entropy random strings that don't match a known prefix pattern won't be caught.
-- **No historical scanning.** Reviews already ingested into the vector database (before this redaction layer existed) are not retroactively scrubbed.
+- **No retroactive scanning of existing historical data.** New historical reviews ingested via `ingest_historical_reviews` or `add_reviews_batch` have their code snippets and comments scrubbed through `redact_text()` before document construction, embedding, and storage. However, reviews that were already ingested into the vector database prior to this fix are NOT retroactively scrubbed unless the database is rebuilt or re-ingested from source.
 - **Not a substitute for secret hygiene.** The best defence is not committing secrets to version control in the first place.  Use `.gitignore`, secret managers, and pre-commit hooks (e.g. `detect-secrets`).
 - **Code structure is still sent.** Even after redaction, the code diff itself — variable names, logic, architecture — is transmitted to the LLM provider.  If the code itself is confidential intellectual property, external API calls may be unacceptable regardless of secret redaction.
 

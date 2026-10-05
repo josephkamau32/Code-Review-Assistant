@@ -96,9 +96,20 @@ def load_cases(cases_dir: str) -> List[Dict[str, Any]]:
         raise FileNotFoundError(f"No JSON test cases found in {cases_dir}")
 
     cases = []
+    seen_paths: Dict[str, str] = {}
     for cf in case_files:
         with open(cf, "r", encoding="utf-8") as f:
-            cases.append(json.load(f))
+            data = json.load(f)
+            file_path = data.get("file_path")
+            if file_path:
+                if file_path in seen_paths:
+                    raise ValueError(
+                        f"Duplicate file_path detected across evaluation cases: '{file_path}' "
+                        f"in '{cf}' (already seen in '{seen_paths[file_path]}'). "
+                        f"Each evaluation case must have a unique file_path."
+                    )
+                seen_paths[file_path] = cf
+            cases.append(data)
     return cases
 
 

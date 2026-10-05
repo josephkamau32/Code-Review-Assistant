@@ -129,6 +129,19 @@ class TestRedactionPatterns:
         assert REDACTED_EMAIL in redacted
         assert report.total_redactions >= 1
 
+    def test_provider_specific_key_inside_assignment_no_double_count(self):
+        """Confirm a provider-specific key inside an assignment (e.g. AWS_ACCESS_KEY = 'AKIA...')
+        records exactly 1 redaction in the report, avoiding double-counting by the
+        subsequent generic_secret_assignment pattern.
+        """
+        text = 'AWS_ACCESS_KEY = "AKIA0000000000000000"'
+        redacted, report = redact_text(text)
+
+        assert "AKIA0000000000000000" not in redacted
+        assert REDACTED_SECRET in redacted
+        assert report.total_redactions == 1
+        assert report.redactions_by_label == {"aws_access_key": 1}
+
 
 class TestRedactionPreservesStructure:
     """Redaction must not alter line count or line boundaries."""
@@ -167,6 +180,31 @@ class TestRedactionPreservesStructure:
         )
         redacted, report = redact_text(clean)
         assert redacted == clean
+        assert report.total_redactions == 0
+
+    def test_unclosed_quote_does_not_span_newlines_or_alter_line_count(self):
+        """Confirm generic secret assignment with a missing closing quote on line 1
+        does NOT match across newlines to a quote on a subsequent line, preserving
+        line count (LLM-04 invariant).
+        """
+        diff = (
+            "@@ -1,5 +1,5 @@\n"
+            '+API_KEY = "unclosed_secret_without_quote\n'
+            " def foo():\n"
+            '-    return "quoted_string_on_line_3"\n'
+            '+    return "done"\n'
+        )
+        before_line_count = len(diff.splitlines())
+        redacted, report = redact_text(diff)
+        after_line_count = len(redacted.splitlines())
+
+        # Line count must be preserved exactly
+        assert after_line_count == before_line_count
+        # The unclosed quote on line 2 must not consume text across newlines up to line 4
+        assert "unclosed_secret_without_quote" in redacted
+        assert "quoted_string_on_line_3" in redacted
+        assert "done" in redacted
+        # No cross-line match occurred
         assert report.total_redactions == 0
 
 
@@ -289,7 +327,7 @@ class TestLLMServiceReceivesRedactedText:
 
         assert (
             fake_secret not in sent_code_change.diff
-        ), "Raw secret was sent to LLM service — redaction failed!"
+        ), "Raw secret was sent to LLM service - redaction failed!"
         assert REDACTED_SECRET in sent_code_change.diff
 
         # Also verify the embedding service got redacted text
@@ -297,7 +335,165 @@ class TestLLMServiceReceivesRedactedText:
         sent_diff_text = embed_call_args[0][0]
         assert (
             fake_secret not in sent_diff_text
-        ), "Raw secret was sent to embedding service — redaction failed!"
+        ), "Raw secret was sent to embedding service - redaction failed!"
+
+    @patch("src.rag.pipeline.VectorStoreManager")
+    @patch("src.rag.pipeline.EmbeddingService")
+    @patch("src.rag.pipeline.LLMService")
+    def test_file_path_redacted_in_embedding_and_llm(
+        self, MockLLMService, MockEmbeddingService, MockVectorStore
+    ):
+        from datetime import datetime
+
+        from src.models.schemas import CodeChange, CodeLanguage, PullRequest
+        from src.rag.pipeline import RAGPipeline
+
+        mock_embedding = MockEmbeddingService.return_value
+        mock_embedding.embed_code_change.return_value = [0.1] * 768
+
+        mock_vs = MockVectorStore.return_value
+        mock_vs.search_similar_reviews.return_value = {
+            "documents": [[]],
+            "metadatas": [[]],
+            "distances": [[]],
+        }
+
+        mock_llm = MockLLMService.return_value
+        mock_llm.generate_review.return_value = {
+            "suggestions": [],
+            "summary": "Looks good.",
+        }
+        mock_llm.generate_summary.return_value = "No issues."
+
+        diff = "@@ -1,2 +1,3 @@\n import os\n+x = 1\n print(x)\n"
+        secret_path = "src/AKIA0000000000000000/helper.py"
+        pr = PullRequest(
+            pr_number=43,
+            title="Test PR",
+            author="tester",
+            repository="test/repo",
+            branch="main",
+            changes=[
+                CodeChange(
+                    file_path=secret_path,
+                    diff=diff,
+                    language=CodeLanguage.PYTHON,
+                    added_lines=1,
+                    removed_lines=0,
+                )
+            ],
+            created_at=datetime.now(),
+        )
+
+        pipeline = RAGPipeline()
+        pipeline.review_pull_request(pr)
+
+        # 1. Embedding context must contain redacted file path, not raw secret
+        embed_call_kwargs = mock_embedding.embed_code_change.call_args
+        context_sent = embed_call_kwargs.kwargs.get("context") or embed_call_kwargs[
+            1
+        ].get("context")
+        assert "AKIA0000000000000000" not in context_sent
+        assert REDACTED_SECRET in context_sent
+
+        # 2. LLM service must receive redacted CodeChange.file_path
+        call_kwargs = mock_llm.generate_review.call_args
+        sent_code_change = call_kwargs.kwargs.get("code_change") or call_kwargs[1].get(
+            "code_change"
+        )
+        if sent_code_change is None:
+            sent_code_change = call_kwargs[0][0]
+        assert "AKIA0000000000000000" not in sent_code_change.file_path
+        assert REDACTED_SECRET in sent_code_change.file_path
+
+
+class TestHistoricalReviewIngestionRedaction:
+    """Test that historical review ingestion redacts secrets and PII before embedding and storage."""
+
+    @patch("src.rag.pipeline.VectorStoreManager")
+    @patch("src.rag.pipeline.EmbeddingService")
+    @patch("src.rag.pipeline.LLMService")
+    def test_pipeline_ingest_historical_reviews_redacts_content(
+        self, MockLLMService, MockEmbeddingService, MockVectorStore
+    ):
+        from datetime import datetime
+
+        from src.models.schemas import CodeLanguage, HistoricalReview
+        from src.rag.pipeline import RAGPipeline
+
+        mock_embedding = MockEmbeddingService.return_value
+        mock_embedding.embed_batch.return_value = [[0.1] * 768]
+        mock_vs = MockVectorStore.return_value
+
+        pipeline = RAGPipeline()
+        review = HistoricalReview(
+            pr_number=101,
+            repository="test/repo",
+            file_path="src/config.py",
+            code_snippet='API_KEY = "AKIA0000000000000000"',
+            review_comment="Please contact developer@example.com about this secret",
+            reviewer="reviewer1",
+            comment_type="security",
+            language=CodeLanguage.PYTHON,
+            created_at=datetime.now(),
+            was_resolved=True,
+        )
+
+        pipeline.ingest_historical_reviews([review])
+
+        # Verify embed_batch received redacted document
+        assert mock_embedding.embed_batch.called
+        embedded_docs = mock_embedding.embed_batch.call_args[0][0]
+        assert len(embedded_docs) == 1
+        assert "AKIA0000000000000000" not in embedded_docs[0]
+        assert "developer@example.com" not in embedded_docs[0]
+        assert REDACTED_SECRET in embedded_docs[0]
+        assert REDACTED_EMAIL in embedded_docs[0]
+
+        # Verify vector_store.add_reviews_batch received reviews with redacted snippets/comments
+        assert mock_vs.add_reviews_batch.called
+        stored_reviews = mock_vs.add_reviews_batch.call_args[0][0]
+        assert len(stored_reviews) == 1
+        assert "AKIA0000000000000000" not in stored_reviews[0].code_snippet
+        assert REDACTED_SECRET in stored_reviews[0].code_snippet
+        assert "developer@example.com" not in stored_reviews[0].review_comment
+        assert REDACTED_EMAIL in stored_reviews[0].review_comment
+
+    def test_vector_store_add_review_redacts_documents(self):
+        from datetime import datetime
+        from unittest.mock import MagicMock
+
+        from src.models.schemas import CodeLanguage, HistoricalReview
+        from src.rag.vector_store import VectorStoreManager
+
+        vs = VectorStoreManager.__new__(VectorStoreManager)
+        vs.collection = MagicMock()
+
+        review = HistoricalReview(
+            pr_number=102,
+            repository="test/repo",
+            file_path="src/auth.py",
+            code_snippet='token = "ghp_000000000000000000000000000000000000"',
+            review_comment="Hardcoded token found, ping security@example.com",
+            reviewer="reviewer2",
+            comment_type="security",
+            language=CodeLanguage.PYTHON,
+            created_at=datetime.now(),
+            was_resolved=True,
+        )
+
+        vs.add_review(review, [0.1] * 768)
+
+        # Confirm collection.add received document with secrets redacted
+        call_kwargs = vs.collection.add.call_args
+        documents = call_kwargs.kwargs.get("documents") or call_kwargs[1].get(
+            "documents"
+        )
+        assert len(documents) == 1
+        assert "ghp_00000000" not in documents[0]
+        assert "security@example.com" not in documents[0]
+        assert REDACTED_SECRET in documents[0]
+        assert REDACTED_EMAIL in documents[0]
 
 
 class TestCase02BenchmarkRedaction:

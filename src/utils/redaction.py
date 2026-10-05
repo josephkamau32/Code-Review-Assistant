@@ -3,11 +3,11 @@ Redaction utility for scrubbing secrets and PII from code diffs before
 sending them to external LLM / embedding APIs (PRIV-02).
 
 Design decisions
-────────────────
+----------------
 * Regex-only, no heavy dependencies (detect-secrets, etc.).  Catches the
   common high-confidence patterns listed below; will NOT catch everything
   (see PRIVACY.md for an honest limitations section).
-* Replacements are same-line, same-line-count – the diff structure is
+* Replacements are same-line, same-line-count - the diff structure is
   preserved so downstream line-number validation (LLM-04) is unaffected.
 * Never logs the actual secret value.  The returned ``RedactionReport``
   contains only counts and pattern labels.
@@ -19,21 +19,21 @@ import re
 from dataclasses import dataclass, field
 from typing import List, Tuple
 
-# ─── Placeholder tokens ──────────────────────────────────────────────────────
+# --- Placeholder tokens ------------------------------------------------------
 REDACTED_SECRET = "[REDACTED: real secret value removed]"
 REDACTED_EMAIL = "[REDACTED: email address removed]"
 
-# ─── Pattern registry ────────────────────────────────────────────────────────
+# --- Pattern registry --------------------------------------------------------
 # Each entry is (label, compiled regex).
 # Ordering matters: more-specific patterns first, generic catch-all last.
 _PATTERNS: List[Tuple[str, re.Pattern]] = [
-    # ── Provider-specific API key prefixes ────────────────────────────────
+    # --- Provider-specific API key prefixes ----------------------------------
     # AWS Access Key IDs (always 20-char, uppercase, starting AKIA)
     (
         "aws_access_key",
         re.compile(r"AKIA[0-9A-Z]{16}"),
     ),
-    # Google / Gemini API keys (AIza… and AQ.Ab… forms)
+    # Google / Gemini API keys (AIza... and AQ.Ab... forms)
     (
         "google_api_key",
         re.compile(r"AIza[0-9A-Za-z\-_]{35}"),
@@ -57,7 +57,8 @@ _PATTERNS: List[Tuple[str, re.Pattern]] = [
         "slack_token",
         re.compile(r"xox[bp]-[0-9A-Za-z\-]{20,}"),
     ),
-    # ── Generic assignment patterns ───────────────────────────────────────
+    # -------------------------------------------------------------------------
+    # Generic assignment patterns
     # Matches:  SOMETHING_KEY = "value"  /  password = 'value'  etc.
     # Case-insensitive variable name; value in single or double quotes.
     (
@@ -68,11 +69,12 @@ _PATTERNS: List[Tuple[str, re.Pattern]] = [
             r"""\w*\b"""  # variable name
             r"""\s*[:=]\s*)"""  # assignment operator
             r"""(["'])"""  # opening quote (group 2)
-            r"""([^"']{4,})"""  # value – at least 4 chars (group 3)
+            r"""([^"'\r\n]{4,})"""  # value - at least 4 chars on the same line (group 3)
             r"""(\2)""",  # closing quote must match opener
         ),
     ),
-    # ── Email addresses ───────────────────────────────────────────────────
+    # -------------------------------------------------------------------------
+    # Email addresses
     (
         "email_address",
         re.compile(r"[a-zA-Z0-9_.+\-]+@[a-zA-Z0-9\-]+\.[a-zA-Z]{2,}"),
@@ -82,7 +84,7 @@ _PATTERNS: List[Tuple[str, re.Pattern]] = [
 
 @dataclass
 class RedactionReport:
-    """Summary of what was redacted – never stores the actual secret."""
+    """Summary of what was redacted - never stores the actual secret."""
 
     total_redactions: int = 0
     redactions_by_label: dict = field(default_factory=dict)
@@ -96,9 +98,9 @@ def redact_text(text: str) -> Tuple[str, RedactionReport]:
     """Return *(redacted_text, report)*.
 
     Guarantees
-    ──────────
-    * Same number of ``\\n`` newlines  → same line count.
-    * No lines deleted or inserted   → line numbers stay meaningful.
+    ----------
+    * Same number of ``\\n`` newlines -> same line count.
+    * No lines deleted or inserted  -> line numbers stay meaningful.
     * Placeholder tokens clearly mark where redaction happened.
     """
     report = RedactionReport()
@@ -107,6 +109,16 @@ def redact_text(text: str) -> Tuple[str, RedactionReport]:
         if label == "generic_secret_assignment":
             # Special handling: only mask the quoted value, not the key name.
             def _replace_assignment(m: re.Match) -> str:
+                val = m.group(3)
+                # If already replaced by an earlier pattern (e.g. AWS/Slack/GitHub token),
+                # do not re-record or double-redact.
+                if (
+                    val == REDACTED_SECRET
+                    or val == REDACTED_EMAIL
+                    or val.startswith("[REDACTED:")
+                ):
+                    return m.group(0)
+
                 report.record(label)
                 # Keep prefix (variable + operator + opening quote), replace
                 # value with placeholder, keep closing quote.

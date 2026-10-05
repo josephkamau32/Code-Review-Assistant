@@ -378,3 +378,59 @@ def test_score_case_hit_with_different_wording_than_keywords():
     assert (
         hit.keyword_matched is False
     )  # Informational flag tracks keyword absence without failing the hit
+
+
+def test_load_cases_duplicate_file_path_raises(tmp_path):
+    """Confirm load_cases raises ValueError if two test cases share the same file_path."""
+    import json
+    from eval.run_eval import load_cases
+
+    case1 = {
+        "id": "case_01",
+        "title": "First Case",
+        "file_path": "src/duplicate_path.py",
+        "difficulty": "obvious",
+        "ground_truth": [],
+    }
+    case2 = {
+        "id": "case_02",
+        "title": "Second Case",
+        "file_path": "src/duplicate_path.py",
+        "difficulty": "obvious",
+        "ground_truth": [],
+    }
+    (tmp_path / "case_01.json").write_text(json.dumps(case1), encoding="utf-8")
+    (tmp_path / "case_02.json").write_text(json.dumps(case2), encoding="utf-8")
+
+    with pytest.raises(
+        ValueError, match="Duplicate file_path detected across evaluation cases"
+    ):
+        load_cases(str(tmp_path))
+
+
+def test_load_cases_unique_file_paths_succeeds(tmp_path):
+    """Confirm load_cases succeeds when all test cases have distinct file_path values."""
+    import json
+    from eval.run_eval import load_cases
+
+    case1 = {
+        "id": "case_01",
+        "title": "First Case",
+        "file_path": "src/first_path.py",
+        "difficulty": "obvious",
+        "ground_truth": [],
+    }
+    case2 = {
+        "id": "case_02",
+        "title": "Second Case",
+        "file_path": "src/second_path.py",
+        "difficulty": "obvious",
+        "ground_truth": [],
+    }
+    (tmp_path / "case_01.json").write_text(json.dumps(case1), encoding="utf-8")
+    (tmp_path / "case_02.json").write_text(json.dumps(case2), encoding="utf-8")
+
+    cases = load_cases(str(tmp_path))
+    assert len(cases) == 2
+    assert cases[0]["id"] == "case_01"
+    assert cases[1]["id"] == "case_02"
