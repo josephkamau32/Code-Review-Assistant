@@ -204,3 +204,27 @@ def test_github_client_api_error(monkeypatch):
     with pytest.raises(GithubException) as exc_info:
         client.fetch_historical_reviews("nonexistent/repo")
     assert exc_info.value.status == 404
+
+
+def test_github_client_init_with_auth_token(monkeypatch):
+    """Test that GitHubClient initializes PyGithub using github.Auth.Token."""
+    import src.utils.github_client as gh_mod
+
+    monkeypatch.setattr(
+        gh_mod.settings, "github_token", "ghp_000000000000000000000000000000000000"
+    )
+    client = gh_mod.GitHubClient()
+    assert client.client is not None
+
+
+def test_github_client_init_without_token(monkeypatch):
+    """Test that GitHubClient sets self.client to None when token is missing or placeholder."""
+    import src.utils.github_client as gh_mod
+
+    monkeypatch.setattr(gh_mod.settings, "github_token", "")
+    client_empty = gh_mod.GitHubClient()
+    assert client_empty.client is None
+
+    monkeypatch.setattr(gh_mod.settings, "github_token", "your_github_token_here")
+    client_placeholder = gh_mod.GitHubClient()
+    assert client_placeholder.client is None

@@ -1,4 +1,4 @@
-from github import Github, GithubException
+from github import Auth, Github, GithubException
 from typing import List, Dict, Any, Optional
 from loguru import logger
 from src.config.settings import settings
@@ -18,7 +18,8 @@ class GitHubClient:
             )
             self.client = None
         else:
-            self.client = Github(settings.github_token)
+            auth = Auth.Token(settings.github_token)
+            self.client = Github(auth=auth)
             logger.info("GitHub client initialized")
         self.language_extensions = {
             ".py": CodeLanguage.PYTHON,
