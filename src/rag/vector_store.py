@@ -6,7 +6,7 @@ from typing import List, Dict, Any, Optional
 from loguru import logger
 from src.config.settings import settings
 from src.models.schemas import HistoricalReview
-import json
+from src.utils.redaction import redact_text
 
 
 def _namespaced_collection_name() -> str:
@@ -81,10 +81,11 @@ class VectorStoreManager:
             "created_at": review.created_at.isoformat(),
         }
 
-        # Combine code snippet and review for better context
-        document = (
-            f"Code:\n{review.code_snippet}\n\nReview Comment:\n{review.review_comment}"
-        )
+        # Redact secrets/PII before constructing document for storage (PRIV-02)
+        code_raw = review.code_snippet.strip() if review.code_snippet else ""
+        code_part, _ = redact_text(code_raw) if code_raw else ("", None)
+        comment_part, _ = redact_text(review.review_comment.strip())
+        document = f"Code:\n{code_part}\n\nReview Comment:\n{comment_part}"
 
         logger.debug(
             f"DEBUG: Adding review to vector store - doc_id: {doc_id}, embedding_len: {len(embedding)}"
@@ -130,9 +131,10 @@ class VectorStoreManager:
 
             ids.append(doc_id)
 
-            # Sanitize document content
-            code_part = review.code_snippet.strip() if review.code_snippet else ""
-            comment_part = review.review_comment.strip()
+            # Redact document content before storage (PRIV-02)
+            code_raw = review.code_snippet.strip() if review.code_snippet else ""
+            code_part, _ = redact_text(code_raw) if code_raw else ("", None)
+            comment_part, _ = redact_text(review.review_comment.strip())
             document = f"Code:\n{code_part}\n\nReview Comment:\n{comment_part}"
             documents.append(document)
 

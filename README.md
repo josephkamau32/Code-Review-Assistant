@@ -26,6 +26,7 @@ A context-aware code review assistant that uses Retrieval-Augmented Generation (
 - [Quick Start & Configuration](docs/configuration.md)
 - [API Documentation](docs/api.md)
 - [Deployment Guide](DEPLOYMENT.md)
+- [Privacy & Data Flow](PRIVACY.md)
 - [Testing](docs/testing.md)
 - [Troubleshooting](docs/troubleshooting.md)
 

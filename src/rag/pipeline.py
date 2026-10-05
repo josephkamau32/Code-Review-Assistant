@@ -8,10 +8,10 @@ from src.models.schemas import (
     PullRequest,
     ReviewSuggestion,
     ReviewResponse,
-    CodeChange,
     HistoricalReview,
 )
 from src.config.settings import settings
+from src.utils.redaction import redact_text
 import time
 
 
@@ -113,12 +113,37 @@ class RAGPipeline:
 
             logger.info(f"Validated {len(valid_reviews)}/{len(reviews)} reviews")
 
-            # Prepare documents for embedding
+            # Prepare documents for embedding with secrets/PII redacted (PRIV-02)
+            redacted_reviews = []
             documents = []
             for review in valid_reviews:
-                # Sanitize and format document
-                code_part = review.code_snippet.strip() if review.code_snippet else ""
-                comment_part = review.review_comment.strip()
+                redacted_snippet = ""
+                if review.code_snippet:
+                    redacted_snippet, rep_snip = redact_text(review.code_snippet)
+                    if rep_snip.total_redactions > 0:
+                        logger.info(
+                            f"Redacted {rep_snip.total_redactions} potential secret(s) "
+                            f"from historical review snippet (PR #{review.pr_number}, "
+                            f"{review.file_path}): {rep_snip.redactions_by_label}"
+                        )
+                redacted_comment, rep_com = redact_text(review.review_comment)
+                if rep_com.total_redactions > 0:
+                    logger.info(
+                        f"Redacted {rep_com.total_redactions} potential secret(s) "
+                        f"from historical review comment (PR #{review.pr_number}, "
+                        f"{review.file_path}): {rep_com.redactions_by_label}"
+                    )
+
+                redacted_review = review.model_copy(
+                    update={
+                        "code_snippet": redacted_snippet,
+                        "review_comment": redacted_comment,
+                    }
+                )
+                redacted_reviews.append(redacted_review)
+
+                code_part = redacted_snippet.strip()
+                comment_part = redacted_comment.strip()
                 doc = f"Code:\n{code_part}\n\nReview Comment:\n{comment_part}"
                 documents.append(doc)
 
@@ -130,21 +155,21 @@ class RAGPipeline:
                 logger.error(f"Failed to generate embeddings: {e}")
                 raise
 
-            if len(embeddings) != len(valid_reviews):
+            if len(embeddings) != len(redacted_reviews):
                 logger.error(
-                    f"Embedding count mismatch: got {len(embeddings)}, expected {len(valid_reviews)}"
+                    f"Embedding count mismatch: got {len(embeddings)}, expected {len(redacted_reviews)}"
                 )
                 raise ValueError("Embedding count mismatch")
 
             # Store in vector database
             logger.info("Storing in vector database...")
             try:
-                self.vector_store.add_reviews_batch(valid_reviews, embeddings)
+                self.vector_store.add_reviews_batch(redacted_reviews, embeddings)
             except Exception as e:
                 logger.error(f"Failed to store in vector database: {e}")
                 raise
 
-            logger.info(f"Successfully ingested {len(valid_reviews)} reviews")
+            logger.info(f"Successfully ingested {len(redacted_reviews)} reviews")
 
         except Exception as e:
             logger.error(f"Error during review ingestion: {type(e).__name__} - {e}")
@@ -171,7 +196,8 @@ class RAGPipeline:
             )
 
         logger.info(
-            f"Starting review for PR #{pull_request.pr_number} in {pull_request.repository} ({len(pull_request.changes)} files)"
+            f"Starting review for PR #{pull_request.pr_number} in "
+            f"{pull_request.repository} ({len(pull_request.changes)} files)"
         )
 
         for code_change in pull_request.changes:
@@ -179,15 +205,41 @@ class RAGPipeline:
             if not code_change.diff or code_change.language == "other":
                 continue
 
-            # Step 1: Generate embedding for the code change
+            # --- Step 0: Line validation on the REAL diff (LLM-04) -----------
+            # Must happen BEFORE redaction so unidiff sees the original
+            # hunk headers and content unchanged.
+            valid_lines = extract_valid_lines(code_change.diff, code_change.file_path)
+
+            # --- Step 0b: Redact secrets/PII from diff and file path (PRIV-02)
+            # Create a redacted copy of the CodeChange for all external API
+            # calls (embedding + LLM).  The original code_change is kept
+            # intact for line-number bookkeeping above.
+            redacted_diff, diff_report = redact_text(code_change.diff)
+            redacted_file_path, fp_report = redact_text(code_change.file_path)
+            total_redactions = diff_report.total_redactions + fp_report.total_redactions
+            if total_redactions > 0:
+                combined_labels = dict(diff_report.redactions_by_label)
+                for lbl, count in fp_report.redactions_by_label.items():
+                    combined_labels[lbl] = combined_labels.get(lbl, 0) + count
+                logger.info(
+                    f"Redacted {total_redactions} potential "
+                    f"secret(s) from {code_change.file_path}: "
+                    f"{combined_labels}"
+                )
+            redacted_change = code_change.model_copy(
+                update={"diff": redacted_diff, "file_path": redacted_file_path}
+            )
+
+            # Step 1: Generate embedding for the code change (redacted)
             code_context = (
-                f"File: {code_change.file_path}\nLanguage: {code_change.language.value}"
+                f"File: {redacted_change.file_path}\n"
+                f"Language: {redacted_change.language.value}"
             )
             logger.debug(
-                f"DEBUG: Generating embedding for {code_change.file_path}, diff_length: {len(code_change.diff)}"
+                f"DEBUG: Generating embedding for {redacted_change.file_path}, diff_length: {len(redacted_change.diff)}"
             )
             query_embedding = self.embedding_service.embed_code_change(
-                code_change.diff, context=code_context
+                redacted_change.diff, context=code_context
             )
             logger.debug(
                 f"DEBUG: Generated query embedding, length: {len(query_embedding)}"
@@ -226,15 +278,15 @@ class RAGPipeline:
             else:
                 logger.debug("DEBUG: No similar reviews found")
 
-            # Step 3: Generate review using LLM with RAG context
+            # Step 3: Generate review using LLM with RAG context (redacted)
             review_result = self.llm_service.generate_review(
-                code_change=code_change,
+                code_change=redacted_change,
                 similar_reviews=similar_reviews,
                 style_guide_context=style_guide,
             )
 
             # Step 4: Parse suggestions with line-number validation (LLM-04)
-            valid_lines = extract_valid_lines(code_change.diff, code_change.file_path)
+            # valid_lines was computed in Step 0 from the REAL (un-redacted) diff.
             for suggestion_data in review_result.get("suggestions", []):
                 raw_line = suggestion_data.get("line_number")
                 validated_line = None

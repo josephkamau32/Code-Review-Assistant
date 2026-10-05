@@ -96,18 +96,31 @@ def load_cases(cases_dir: str) -> List[Dict[str, Any]]:
         raise FileNotFoundError(f"No JSON test cases found in {cases_dir}")
 
     cases = []
+    seen_paths: Dict[str, str] = {}
     for cf in case_files:
         with open(cf, "r", encoding="utf-8") as f:
-            cases.append(json.load(f))
+            data = json.load(f)
+            file_path = data.get("file_path")
+            if file_path:
+                if file_path in seen_paths:
+                    raise ValueError(
+                        f"Duplicate file_path detected across evaluation cases: '{file_path}' "
+                        f"in '{cf}' (already seen in '{seen_paths[file_path]}'). "
+                        f"Each evaluation case must have a unique file_path."
+                    )
+                seen_paths[file_path] = cf
+            cases.append(data)
     return cases
 
 
 def build_mock_llm_service(pipeline: RAGPipeline, cases: List[Dict[str, Any]]):
     """Patch pipeline.llm_service to produce realistic simulated responses for dry-run."""
-    case_map = {(c["file_path"], c["diff"]): c for c in cases}
+    # Assumes unique file_path values across all cases in eval/cases/.
+    # Revisit this mapping if multi-file PR cases or duplicate paths are ever introduced.
+    case_map = {c["file_path"]: c for c in cases}
 
     def mock_generate_review(code_change, similar_reviews=None, style_guide_context=""):
-        c = case_map.get((code_change.file_path, code_change.diff))
+        c = case_map.get(code_change.file_path)
         if not c:
             return {"suggestions": []}
 
