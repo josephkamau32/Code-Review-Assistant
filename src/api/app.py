@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -33,6 +34,50 @@ import sys
 # Initialize rate limiter
 limiter = Limiter(key_func=get_remote_address)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application startup and shutdown lifecycle."""
+    try:
+        logger.info("Starting Code Review Assistant API")
+        logger.info(f"Python version: {sys.version}")
+        logger.info(f"Environment: {os.getenv('ENVIRONMENT', 'development')}")
+        logger.info(f"LLM Provider: {settings.llm_provider}")
+        logger.info(f"Vector DB path: {settings.chroma_persist_directory}")
+        logger.info(f"Collection name: {settings.chroma_collection_name}")
+
+        # Validate critical directories
+        os.makedirs(settings.chroma_persist_directory, exist_ok=True)
+        os.makedirs("logs", exist_ok=True)
+        os.makedirs("data", exist_ok=True)
+
+        # Validate API keys
+        if settings.llm_provider == "openai" and not settings.openai_api_key:
+            logger.error("OPENAI_API_KEY not configured")
+        elif settings.llm_provider == "gemini" and not settings.gemini_api_key:
+            logger.error("GEMINI_API_KEY not configured")
+
+        if not settings.github_token:
+            logger.warning(
+                "GITHUB_TOKEN not configured - GitHub features will be limited"
+            )
+
+        logger.info("Startup validation complete")
+
+    except Exception as e:
+        logger.error(f"Startup error: {e}")
+        raise
+
+    yield
+
+    try:
+        logger.info("Shutting down Code Review Assistant API")
+        # Add cleanup tasks here if needed
+        logger.info("Shutdown complete")
+    except Exception as e:
+        logger.error(f"Error during shutdown: {e}")
+
+
 # Initialize FastAPI app
 app = FastAPI(
     title="Code Review Assistant API",
@@ -40,6 +85,7 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/api/docs" if settings.enable_authentication else None,
     redoc_url="/api/redoc" if settings.enable_authentication else None,
+    lifespan=lifespan,
 )
 
 # Add security middleware
@@ -192,51 +238,6 @@ async def favicon():
 
 # Configure logging
 logger.add("logs/app.log", rotation="10 MB", retention="1 week")
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize services on startup"""
-    try:
-        logger.info("Starting Code Review Assistant API")
-        logger.info(f"Python version: {sys.version}")
-        logger.info(f"Environment: {os.getenv('ENVIRONMENT', 'development')}")
-        logger.info(f"LLM Provider: {settings.llm_provider}")
-        logger.info(f"Vector DB path: {settings.chroma_persist_directory}")
-        logger.info(f"Collection name: {settings.chroma_collection_name}")
-
-        # Validate critical directories
-        os.makedirs(settings.chroma_persist_directory, exist_ok=True)
-        os.makedirs("logs", exist_ok=True)
-        os.makedirs("data", exist_ok=True)
-
-        # Validate API keys
-        if settings.llm_provider == "openai" and not settings.openai_api_key:
-            logger.error("OPENAI_API_KEY not configured")
-        elif settings.llm_provider == "gemini" and not settings.gemini_api_key:
-            logger.error("GEMINI_API_KEY not configured")
-
-        if not settings.github_token:
-            logger.warning(
-                "GITHUB_TOKEN not configured - GitHub features will be limited"
-            )
-
-        logger.info("Startup validation complete")
-
-    except Exception as e:
-        logger.error(f"Startup error: {e}")
-        raise
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup on shutdown"""
-    try:
-        logger.info("Shutting down Code Review Assistant API")
-        # Add cleanup tasks here if needed
-        logger.info("Shutdown complete")
-    except Exception as e:
-        logger.error(f"Error during shutdown: {e}")
 
 
 if __name__ == "__main__":

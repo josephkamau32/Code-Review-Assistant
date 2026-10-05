@@ -57,6 +57,14 @@ def test_api_health():
     assert response.json()["status"] == "healthy"
 
 
+def test_app_lifespan_execution():
+    """Verify that FastAPI lifespan runs startup and shutdown handlers cleanly with TestClient."""
+    with TestClient(app) as client:
+        response = client.get("/api/v1/health")
+        assert response.status_code == 200
+        assert response.json()["status"] == "healthy"
+
+
 def test_webhook_signature_validation(monkeypatch):
     """Test webhook signature validation using TestClient with mocked GitHub boundary (TEST-03)"""
     if (
