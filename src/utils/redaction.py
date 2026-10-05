@@ -108,6 +108,8 @@ def redact_text(text: str) -> Tuple[str, RedactionReport]:
     for label, pattern in _PATTERNS:
         if label == "generic_secret_assignment":
             # Special handling: only mask the quoted value, not the key name.
+            # NOTE: Depends on _PATTERNS ordering - provider-specific patterns must run
+            # BEFORE generic_secret_assignment so provider keys are already masked.
             def _replace_assignment(m: re.Match) -> str:
                 val = m.group(3)
                 # If already replaced by an earlier pattern (e.g. AWS/Slack/GitHub token),

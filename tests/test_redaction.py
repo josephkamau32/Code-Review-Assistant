@@ -9,6 +9,7 @@ import textwrap
 from unittest.mock import patch
 
 from src.utils.redaction import (
+    _PATTERNS,
     REDACTED_EMAIL,
     REDACTED_SECRET,
     redact_text,
@@ -141,6 +142,28 @@ class TestRedactionPatterns:
         assert REDACTED_SECRET in redacted
         assert report.total_redactions == 1
         assert report.redactions_by_label == {"aws_access_key": 1}
+
+    def test_patterns_ordering_provider_before_generic(self):
+        """Confirm all provider-specific patterns appear before generic_secret_assignment in _PATTERNS.
+
+        This ordering invariant ensures that provider-specific patterns replace known tokens first,
+        allowing generic_secret_assignment's placeholder guard to prevent double-counting.
+        """
+        labels = [label for label, _ in _PATTERNS]
+        generic_idx = labels.index("generic_secret_assignment")
+        provider_labels = [
+            "aws_access_key",
+            "google_api_key",
+            "google_api_key_alt",
+            "github_token",
+            "openai_style_key",
+            "slack_token",
+        ]
+        for pl in provider_labels:
+            assert pl in labels
+            assert (
+                labels.index(pl) < generic_idx
+            ), f"Provider pattern '{pl}' must appear before 'generic_secret_assignment' in _PATTERNS"
 
 
 class TestRedactionPreservesStructure:
