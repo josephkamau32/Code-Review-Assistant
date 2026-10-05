@@ -75,9 +75,12 @@ _PATTERNS: List[Tuple[str, re.Pattern]] = [
     ),
     # -------------------------------------------------------------------------
     # Email addresses
+    # Bounded quantifiers eliminate ReDoS / catastrophic backtracking:
+    # RFC 5321 §4.5.3.1.1 max 64-char local part, §4.5.3.1.2 max 255-char domain,
+    # and 2-24 char IANA TLDs.
     (
         "email_address",
-        re.compile(r"[a-zA-Z0-9_.+\-]+@[a-zA-Z0-9\-]+\.[a-zA-Z]{2,}"),
+        re.compile(r"[a-zA-Z0-9_.+\-]{1,64}@[a-zA-Z0-9\-]{1,255}\.[a-zA-Z]{2,24}"),
     ),
 ]
 

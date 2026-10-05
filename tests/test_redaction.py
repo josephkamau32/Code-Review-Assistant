@@ -130,6 +130,53 @@ class TestRedactionPatterns:
         assert REDACTED_EMAIL in redacted
         assert report.total_redactions >= 1
 
+    def test_email_address_variants(self):
+        """Confirm valid emails across formats and TLDs are correctly redacted."""
+        emails = [
+            "author: developer@example.com",
+            "contact: first.last+tag@sub-domain.example.org",
+            "support: team_123@service.io",
+            "admin: sysadmin@long-domain-name.technology",
+        ]
+        for text in emails:
+            redacted, report = redact_text(text)
+            assert "@" not in redacted
+            assert REDACTED_EMAIL in redacted
+            assert report.total_redactions == 1
+            assert report.redactions_by_label == {"email_address": 1}
+
+    def test_email_pattern_redos_adversarial_input_bounded_time(self):
+        """Confirm adversarial inputs with long contiguous alphanumeric runs and no @
+        (or domain with no dot) do not cause catastrophic backtracking / ReDoS.
+        Under the old unbounded regex, 20k-25k chars took ~2-4s and 100k took 44.5s.
+        With RFC 5321 bounds ({1,64}, {1,255}, {2,24}), it completes in milliseconds (< 1s budget).
+        """
+        import time
+
+        # Adversarial input 1: 25k chars of contiguous alphanumeric with no @
+        adversarial_no_at = "a" * 25000
+        start = time.monotonic()
+        redacted, report = redact_text(adversarial_no_at)
+        duration_no_at = time.monotonic() - start
+
+        assert (
+            duration_no_at < 1.0
+        ), f"ReDoS detected: took {duration_no_at:.3f}s on 25k chars without @"
+        assert redacted == adversarial_no_at
+        assert report.total_redactions == 0
+
+        # Adversarial input 2: 24k chars after @ with no dot
+        adversarial_no_dot = "user@" + ("domain" * 4000)
+        start = time.monotonic()
+        redacted2, report2 = redact_text(adversarial_no_dot)
+        duration_no_dot = time.monotonic() - start
+
+        assert (
+            duration_no_dot < 1.0
+        ), f"ReDoS detected: took {duration_no_dot:.3f}s on 24k domain chars without dot"
+        assert redacted2 == adversarial_no_dot
+        assert report2.total_redactions == 0
+
     def test_provider_specific_key_inside_assignment_no_double_count(self):
         """Confirm a provider-specific key inside an assignment (e.g. AWS_ACCESS_KEY = 'AKIA...')
         records exactly 1 redaction in the report, avoiding double-counting by the
