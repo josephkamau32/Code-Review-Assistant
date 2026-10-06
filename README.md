@@ -44,6 +44,8 @@ uvicorn src.api.app:app --reload --host 0.0.0.0 --port 8000
 ```
 
 > [!NOTE]
+> **Environment Variables:** `.env` files do not support inline comments after a value - put comments on their own line.
+>
 > **Vector Store Collections & Re-Ingestion:** ChromaDB collections are namespaced by embedding model and vector dimension (e.g. `code_reviews_gemini_embedding_001_768d`) to ensure embedding compatibility. Changing `EMBEDDING_PROVIDER`, embedding models, or `EMBEDDING_DIMENSIONS` creates a new distinct collection and requires re-ingesting historical reviews.
 
 ## Running Tests
