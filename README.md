@@ -44,7 +44,7 @@ uvicorn src.api.app:app --reload --host 0.0.0.0 --port 8000
 ```
 
 > [!NOTE]
-> **Environment Variables:** `.env` files do not support inline comments after a value - put comments on their own line.
+> **Environment Variables:** Keep comments on their own line in .env files, not after a value. Python's dotenv parser (used when running locally) strips inline comments correctly, but container runtimes like `docker run --env-file` use a simpler parser that does not - it passes the comment text through as part of the value, which caused a real startup crash during this project's own Docker testing.
 >
 > **Vector Store Collections & Re-Ingestion:** ChromaDB collections are namespaced by embedding model and vector dimension (e.g. `code_reviews_gemini_embedding_001_768d`) to ensure embedding compatibility. Changing `EMBEDDING_PROVIDER`, embedding models, or `EMBEDDING_DIMENSIONS` creates a new distinct collection and requires re-ingesting historical reviews.
 
