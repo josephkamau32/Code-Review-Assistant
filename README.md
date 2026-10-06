@@ -44,6 +44,8 @@ uvicorn src.api.app:app --reload --host 0.0.0.0 --port 8000
 ```
 
 > [!NOTE]
+> **Environment Variables:** Keep comments on their own line in .env files, not after a value. Python's dotenv parser (used when running locally) strips inline comments correctly, but container runtimes like `docker run --env-file` use a simpler parser that does not - it passes the comment text through as part of the value, which caused a real startup crash during this project's own Docker testing.
+>
 > **Vector Store Collections & Re-Ingestion:** ChromaDB collections are namespaced by embedding model and vector dimension (e.g. `code_reviews_gemini_embedding_001_768d`) to ensure embedding compatibility. Changing `EMBEDDING_PROVIDER`, embedding models, or `EMBEDDING_DIMENSIONS` creates a new distinct collection and requires re-ingesting historical reviews.
 
 ## Running Tests
@@ -104,6 +106,13 @@ the real Gemini API (`gemini-3.5-flash-lite`). Full methodology: [eval/README.md
 Recall was stable across two independent runs; false-positive counts and
 exact suggestion wording varied slightly, consistent with normal LLM
 non-determinism at low temperature rather than a flaky harness.
+
+## Engineering Decisions & Trade-offs
+
+- **Gemini as Default LLM:** We chose Google Gemini (`gemini-3.5-flash-lite`) as the out-of-the-box default to leverage its generous free-tier API quotas, ensuring portfolio reviewers and contributors can run the service and evaluation suite at zero cost without entering billing details, while retaining OpenAI as a hot-swappable alternative via our provider interface.
+- **Strict Category-Matching in Evaluation:** The eval harness requires exact defect category matches (`bug`, `security`, `performance`, `style`, `best_practice`) alongside line proximity to prevent vague or speculative observations from inflating recall. The trade-off is false-negative rigidity: in benchmark runs, `case_20` (a TOCTOU race condition) was diagnosed with the exact code fix by Gemini, but scored as a miss purely because the model labeled it `best_practice` rather than `bug`.
+- **Regex-Based Redaction Pre-filter:** Secret and PII redaction runs as an inline pre-filter using bounded regular expressions rather than heavier scanners like `detect-secrets`. This avoids heavy native dependencies and guarantees sub-millisecond synchronous execution on incoming webhook diffs, but trades away entropy-based detection of unstructured, unpatterned high-entropy strings.
+- **Current Architectural Limitation:** Code reviews analyze incoming diffs file-by-file without whole-repository AST indexing or cross-file call graphs. A change that renames an exported symbol, alters type contracts, or modifies function arity across file boundaries appears syntactically sound in isolation, leaving cross-module breakage undetected.
 
 ## Contributing
 

@@ -35,13 +35,17 @@ data/
 logs/
 *.log
 
-# Testing
+# Testing & Evaluation
 tests/
+eval/
 .pytest_cache/
 .coverage
 htmlcov/
 .tox/
 *.cover
+
+# Reports & Documentation
+AUDIT_REPORT.md
 
 # Docker
 .dockerignore
